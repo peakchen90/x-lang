@@ -4,7 +4,7 @@ members = [
 ]
 
 [package]
-name = "xlang"
+name = "x-lang"
 version = "0.0.1"
 authors = ["peakchen90 <1558267774@qq.com>"]
 edition = "2018"

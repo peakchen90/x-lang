@@ -1,4 +1,4 @@
-# xlang
+# x-lang
 
 基于 LLVM 与 rust 实现一门名叫 **x** 的玩具语言，仅用于学习
 
