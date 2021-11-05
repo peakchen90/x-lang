@@ -1,5 +1,5 @@
 [package]
-name = "xlang-parser"
+name = "x-lang-ast"
 version = "0.0.1"
 authors = ["peakchen90 <1558267774@qq.com>"]
 edition = "2018"

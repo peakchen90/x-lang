@@ -5,6 +5,14 @@
 ## 教程
 
 - [用LLVM开发新语言](https://llvm-tutorial-cn.readthedocs.io/en/latest/index.html)
+- [A Tour to LLVM IR（上）](https://zhuanlan.zhihu.com/p/66793637)
+- [A Tour to LLVM IR（下）](https://zhuanlan.zhihu.com/p/66909226)
+
+## 资源
+- https://crates.io/crates/llvm-sys
+- https://crates.io/crates/llvm-ir
+- https://github.com/TheDan64/inkwell
+- https://llvm.org/
 
 ## 语法
 

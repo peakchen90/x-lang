@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "parser"
+    "compiler/ast"
 ]
 
 [package]
@@ -12,6 +12,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-xlang-parser = { path = "./parser" }
+x-lang-ast = { path = "./compiler/ast" }
 serde_json = "1.0.68"
 tiny-json = "0.0.1"

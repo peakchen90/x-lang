@@ -1,4 +1,4 @@
-use xlang_parser::state::Parser;
+use x_lang_ast::state::Parser;
 use std::fs;
 
 fn main() {
