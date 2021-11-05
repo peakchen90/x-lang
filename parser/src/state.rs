@@ -10,6 +10,7 @@ pub struct Parser {
     pub current_char: char,
     pub current_token: Token,
     pub allow_expr: bool,
+    pub current_block_scope: u8, // 当前进入到第几层块级作用域
     pub node: Option<Node>,
 }
 
@@ -23,6 +24,7 @@ impl Parser {
             current_char: ' ',
             current_token: Token::new(TokenType::EOF, ""),
             allow_expr: true,
+            current_block_scope: 0,
             node: None,
         };
         parser.node = Some(parser.parse());

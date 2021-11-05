@@ -10,15 +10,15 @@ pub enum Node {
     FunctionDeclaration {
         id: Box<Node>,
         arguments: Vec<Box<Node>>,
-        body: Vec<Box<Node>>,
+        body: Box<Node>,
     },
     VariableDeclaration {
         id: Box<Node>,
         init: Box<Node>,
     },
-    // BlockStatement {
-    //     body: Vec<Box<Node>>
-    // },
+    BlockStatement {
+        body: Vec<Box<Node>>
+    },
     ReturnStatement {
         argument: Box<Node>
     },
