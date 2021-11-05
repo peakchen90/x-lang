@@ -34,6 +34,11 @@ pub enum Node {
         right: Box<Node>,
         operator: String,
     },
+    AssignmentExpression {
+        left: Box<Node>,
+        right: Box<Node>,
+        operator: String,
+    },
     Identifier {
         name: String
     },

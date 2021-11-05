@@ -10,7 +10,7 @@ pub struct Parser {
     pub current_char: char, // 当前字符
     pub current_token: Token, // 当前 token
     pub allow_expr: bool, // 当前上下文是否允许表达式
-    pub current_block_scope: u8, // 当前进入到第几层块级作用域
+    pub current_block_scope: usize, // 当前进入到第几层块级作用域
     pub node: Option<Node>, // 解析的 ast
 }
 

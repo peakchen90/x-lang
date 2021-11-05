@@ -33,7 +33,11 @@ impl Token {
     }
 
     // 创建一个运算符 Token
-    pub fn create_op(token_type: TokenType, value: &str, precedence: i8) -> Self {
+    pub fn create_op(
+        token_type: TokenType,
+        value: &str,
+        precedence: i8,
+    ) -> Self {
         Token {
             token_type,
             value: String::from(value),
@@ -187,7 +191,9 @@ impl Parser {
         while self.current_char == '/' && self.look_behind(1) == '/' {
             self.next_char();
             self.next_char();
-            while self.check_valid_index() && self.current_char != '\n' && self.current_char != '\r'
+            while self.check_valid_index()
+                && self.current_char != '\n'
+                && self.current_char != '\r'
             {
                 self.next_char();
             }
