@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Serialize)]
 pub enum Node {
     Program {

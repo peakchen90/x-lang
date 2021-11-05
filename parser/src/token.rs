@@ -27,11 +27,13 @@ pub struct Token {
 }
 
 impl Token {
+    // 创建一个 Token
     pub fn new(token_type: TokenType, value: &str) -> Self {
-        Token::create(token_type, value, -1)
+        Token::create_op(token_type, value, -1)
     }
 
-    pub fn create(token_type: TokenType, value: &str, precedence: i8) -> Self {
+    // 创建一个运算符 Token
+    pub fn create_op(token_type: TokenType, value: &str, precedence: i8) -> Self {
         Token {
             token_type,
             value: String::from(value),
@@ -43,6 +45,7 @@ impl Token {
 const KEYWORDS: [&str; 3] = ["fn", "var", "return"];
 
 impl Parser {
+    // 读取下一个 token
     pub fn next_token(&mut self) {
         self.skip_space();
         self.skip_comment();
@@ -53,12 +56,12 @@ impl Parser {
             '=' => {
                 self.next_char();
                 self.allow_expr = true;
-                Token::new(TokenType::Eq, "=")
+                Token::create_op(TokenType::Eq, "=", 1)
             }
             '+' => {
                 self.next_char();
                 self.allow_expr = true;
-                Token::create(TokenType::Plus, "+", 13)
+                Token::create_op(TokenType::Plus, "+", 13)
             }
             '-' => {
                 if self.allow_expr {
@@ -66,18 +69,18 @@ impl Parser {
                 } else {
                     self.next_char();
                     self.allow_expr = true;
-                    Token::create(TokenType::Sub, "-", 13)
+                    Token::create_op(TokenType::Sub, "-", 13)
                 }
             }
             '*' => {
                 self.next_char();
                 self.allow_expr = true;
-                Token::create(TokenType::Mul, "*", 14)
+                Token::create_op(TokenType::Mul, "*", 14)
             }
             '/' => {
                 self.next_char();
                 self.allow_expr = true;
-                Token::create(TokenType::Div, "/", 14)
+                Token::create_op(TokenType::Div, "/", 14)
             }
             '(' => {
                 self.next_char();
@@ -120,6 +123,7 @@ impl Parser {
         self.current_token = token;
     }
 
+    // 读取一个标识符 token
     pub fn read_identifier(&mut self) -> Token {
         let mut value = String::new();
         while self.check_valid_index()
@@ -141,6 +145,7 @@ impl Parser {
         Token::new(TokenType::Identifier, &value)
     }
 
+    // 读取一个数字 token
     pub fn read_number(&mut self) -> Token {
         let mut value = String::new();
         if self.current_char == '-' {
@@ -162,6 +167,7 @@ impl Parser {
         Token::new(TokenType::Number, &value)
     }
 
+    // 跳过空白字符
     pub fn skip_space(&mut self) {
         while self.current_char == ' '
             || self.current_char == '\t'
@@ -176,8 +182,9 @@ impl Parser {
         }
     }
 
+    // 跳过注释
     pub fn skip_comment(&mut self) {
-        while self.current_char == '/' && self.look_behind() == '/' {
+        while self.current_char == '/' && self.look_behind(1) == '/' {
             self.next_char();
             self.next_char();
             while self.check_valid_index() && self.current_char != '\n' && self.current_char != '\r'

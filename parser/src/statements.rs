@@ -3,6 +3,7 @@ use crate::state::Parser;
 use crate::token::TokenType;
 
 impl Parser {
+    // 解析一条语句
     pub fn parse_statement(&mut self) -> Node {
         // 结尾分号是否可以省略
         let mut omit_tailing_semi = false;
@@ -48,6 +49,7 @@ impl Parser {
         statement
     }
 
+    // 解析函数定义语句
     pub fn parse_function_declaration(&mut self) -> Node {
         self.next_token();
 
@@ -81,6 +83,7 @@ impl Parser {
         }
     }
 
+    // 解析块级语句
     pub fn parse_block_statement(&mut self) -> Node {
         // 块级作用域层级 +1
         self.current_block_scope += 1;
@@ -98,6 +101,7 @@ impl Parser {
         Node::BlockStatement { body }
     }
 
+    // 解析变量定义语句
     pub fn parse_variable_declaration(&mut self) -> Node {
         self.next_token();
 
@@ -115,6 +119,7 @@ impl Parser {
         Node::VariableDeclaration { id, init }
     }
 
+    // 解析 return 语句
     pub fn parse_return_statement(&mut self) -> Node {
         self.next_token();
         let argument = Box::new(self.parse_expression());

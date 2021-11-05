@@ -3,6 +3,7 @@ use crate::state::Parser;
 use crate::token::TokenType;
 
 impl Parser {
+    // 解析表达式
     pub fn parse_expression(&mut self) -> Node {
         self.parse_atom_expression(-1)
     }
@@ -73,6 +74,7 @@ impl Parser {
         }
     }
 
+    // 解析函数调用
     pub fn parse_call_expression(&mut self, callee_name: &str) -> Node {
         let callee = Box::new(Node::Identifier {
             name: callee_name.to_string(),
