@@ -1,6 +1,9 @@
-var a = a + 32;
-fn add(a,) {
-    1+1;
-    return a + -1.4*3;
+// 注释
+fn add(a: num, b: num) -> num {
+    return a + b;
 }
-add(a, 3, 32, b());
+
+var n: num = 3;
+var result = add(n, 4.2);
+
+print(result); // 调用系统内置方法

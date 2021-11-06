@@ -4,13 +4,12 @@
 
 ## 教程
 
-- [用 LLVM 开发新语言](https://llvm-tutorial-cn.readthedocs.io/en/latest/index.html)
-- [LLVM 中文文档](https://llvm.liuxfe.com/)
+- [LLVM Tutorial](https://releases.llvm.org/13.0.0/docs/tutorial/index.html)
+- [LLVM Language Reference Manual](https://releases.llvm.org/13.0.0/docs/LangRef.html)
 - [llvm.org](https://llvm.org/)
 - [Getting Started with LLVM Core Libraries（中文版）](https://getting-started-with-llvm-core-libraries-zh-cn.readthedocs.io/zh_CN/latest/index.html)
-- [A Tour to LLVM IR（上）](https://zhuanlan.zhihu.com/p/66793637)
-- [A Tour to LLVM IR（下）](https://zhuanlan.zhihu.com/p/66909226)
-- [LLVM Language Reference Manual](https://llvm.org/docs/LangRef.html)
+- [用 LLVM 开发新语言](https://llvm-tutorial-cn.readthedocs.io/en/latest/index.html) (已过时)
+- [LLVM 中文文档](https://llvm.liuxfe.com/)
 
 ## 资源
 
@@ -22,12 +21,12 @@
 
 ```
 // 注释
-fn add(a, b) {
+fn add(a: num, b: num) -> num {
     return a + b;
 }
 
-var num = 3;
-var result = add(num, 4.2);
+var n: num = 3;
+var result = add(n, 4.2);
 
 print(result); // 调用系统内置方法
 ```

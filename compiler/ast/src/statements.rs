@@ -1,6 +1,5 @@
-use crate::node::Node;
+use crate::shared::{Kind, Node, TokenType, validate_kind};
 use crate::state::Parser;
-use crate::token::TokenType;
 
 impl<'a> Parser<'a> {
     // 解析一条语句
@@ -57,21 +56,38 @@ impl<'a> Parser<'a> {
         self.expect(TokenType::Identifier);
         let id = Box::new(Node::Identifier {
             name: self.current_token.value.to_string(),
+            kind: Kind::None,
         });
+        self.next_token();
 
         // arguments
         let mut arguments = vec![];
-        self.next_token();
         self.consume_or_panic(TokenType::ParenL);
         while self.check_valid_index() && self.is_token(TokenType::Identifier) {
-            let arg = Node::Identifier {
-                name: self.current_token.value.to_string(),
-            };
-            arguments.push(Box::new(arg));
+            let name = self.current_token.value.to_string();
             self.next_token();
+
+            // argument kind
+            self.consume_or_panic(TokenType::Colon);
+            self.expect(TokenType::Identifier);
+            let kind_str = self.current_token.value.to_string();
+            validate_kind(&kind_str);
+            let kind = Kind::Some(kind_str);
+
+            arguments.push(Box::new(Node::Identifier { name, kind }));
+            self.next_token();
+
+            // maybe has next argument
             self.consume(TokenType::Comma);
         }
         self.consume_or_panic(TokenType::ParenR);
+
+        // return kind
+        self.consume_or_panic(TokenType::ReturnSym);
+        let kind_str = self.current_token.value.to_string();
+        validate_kind(&kind_str);
+        let return_kind = Kind::Some(kind_str);
+        self.next_token();
 
         // body
         let body = Box::new(self.parse_block_statement());
@@ -80,6 +96,7 @@ impl<'a> Parser<'a> {
             id,
             arguments,
             body,
+            return_kind,
         }
     }
 
@@ -107,13 +124,26 @@ impl<'a> Parser<'a> {
 
         // id
         self.expect(TokenType::Identifier);
+        let id_name = self.current_token.value.to_string();
+        self.next_token();
+
+        // maybe variable kind
+        let mut kind = Kind::Unknown;
+        if self.consume(TokenType::Colon) {
+            self.expect(TokenType::Identifier);
+            let kind_str = self.current_token.value.to_string();
+            validate_kind(&kind_str);
+            kind = Kind::Some(kind_str);
+            self.next_token();
+        }
+
         let id = Box::new(Node::Identifier {
-            name: self.current_token.value.to_string(),
+            name: id_name,
+            kind,
         });
 
         // init
-        self.next_token();
-        self.consume_or_panic(TokenType::Eq);
+        self.consume_or_panic(TokenType::Assign);
         let init = Box::new(self.parse_expression());
 
         Node::VariableDeclaration { id, init }

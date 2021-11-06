@@ -1,5 +1,5 @@
-use crate::node::Node;
-use crate::token::{Token, TokenType};
+use crate::shared::{is_kind_str, Node, TokenType};
+use crate::token::Token;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
@@ -22,7 +22,11 @@ impl<'a> Parser<'a> {
             index: 0,
             is_start: true,
             current_char: ' ',
-            current_token: Token::new(TokenType::EOF, ""),
+            current_token: Token {
+                token_type: TokenType::EOF,
+                value: String::new(),
+                precedence: -1,
+            },
             allow_expr: true,
             current_block_scope: 0,
             node: None,
@@ -57,13 +61,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // 移动并读取一个字符
-    pub fn next_char(&mut self) {
+    // 向后移动 n 个位置并读取字符
+    pub fn move_index(&mut self, n: usize) {
         if self.is_start {
             self.is_start = false;
         } else {
-            self.index += 1;
+            self.index += n;
         }
+
         if self.index < self.chars.len() {
             self.current_char = self.chars[self.index];
         } else {

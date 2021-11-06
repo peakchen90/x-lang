@@ -1,23 +1,5 @@
+use crate::shared::{is_keyword_str, TokenType};
 use crate::state::Parser;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TokenType {
-    Keyword,
-    Identifier,
-    Number,
-    EOF,
-    Eq,     // =
-    Plus,   // +
-    Sub,    // -
-    Mul,    // *
-    Div,    // /
-    ParenL, // (
-    ParenR, // )
-    BraceL, // {
-    BraceR, // }
-    Comma,  // ,
-    Semi,   // ;
-}
 
 #[derive(Debug)]
 pub struct Token {
@@ -28,16 +10,31 @@ pub struct Token {
 
 impl Token {
     // 创建一个 Token
-    pub fn new(token_type: TokenType, value: &str) -> Self {
-        Token::create_op(token_type, value, -1)
+    pub fn new(p: &mut Parser, token_type: TokenType, value: &str) -> Self {
+        Token::create_op(p, token_type, value, -1)
     }
 
     // 创建一个运算符 Token
     pub fn create_op(
+        p: &mut Parser,
         token_type: TokenType,
         value: &str,
         precedence: i8,
     ) -> Self {
+        match token_type {
+            TokenType::Assign
+            | TokenType::Plus
+            | TokenType::Sub
+            | TokenType::Mul
+            | TokenType::Div
+            | TokenType::ParenL
+            | TokenType::BraceL
+            | TokenType::BraceR
+            | TokenType::Colon
+            | TokenType::Semi => p.allow_expr = true,
+            _ => p.allow_expr = false,
+        }
+
         Token {
             token_type,
             value: String::from(value),
@@ -45,8 +42,6 @@ impl Token {
         }
     }
 }
-
-const KEYWORDS: [&str; 3] = ["fn", "var", "return"];
 
 impl<'a> Parser<'a> {
     // 读取下一个 token
@@ -58,67 +53,64 @@ impl<'a> Parser<'a> {
             'A'..='Z' | 'a'..='z' | '_' | '$' => self.read_identifier(),
             '0'..='9' => self.read_number(),
             '=' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::create_op(TokenType::Eq, "=", 1)
+                self.move_index(1);
+                Token::create_op(self, TokenType::Assign, "=", 1)
             }
             '+' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::create_op(TokenType::Plus, "+", 13)
+                self.move_index(1);
+                Token::create_op(self, TokenType::Plus, "+", 13)
             }
             '-' => {
-                if self.allow_expr {
+                let next_char = self.look_behind(1);
+                if next_char == '>' {
+                    self.move_index(2);
+                    Token::new(self, TokenType::ReturnSym, "->")
+                } else if self.allow_expr {
                     self.read_number()
                 } else {
-                    self.next_char();
-                    self.allow_expr = true;
-                    Token::create_op(TokenType::Sub, "-", 13)
+                    self.move_index(1);
+                    Token::create_op(self, TokenType::Sub, "-", 13)
                 }
             }
             '*' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::create_op(TokenType::Mul, "*", 14)
+                self.move_index(1);
+                Token::create_op(self, TokenType::Mul, "*", 14)
             }
             '/' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::create_op(TokenType::Div, "/", 14)
+                self.move_index(1);
+                Token::create_op(self, TokenType::Div, "/", 14)
             }
             '(' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::new(TokenType::ParenL, "(")
+                self.move_index(1);
+                Token::new(self, TokenType::ParenL, "(")
             }
             ')' => {
-                self.next_char();
-                self.allow_expr = false;
-                Token::new(TokenType::ParenR, ")")
+                self.move_index(1);
+                Token::new(self, TokenType::ParenR, ")")
             }
             '{' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::new(TokenType::BraceL, "{")
+                self.move_index(1);
+                Token::new(self, TokenType::BraceL, "{")
             }
             '}' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::new(TokenType::BraceR, "}")
+                self.move_index(1);
+                Token::new(self, TokenType::BraceR, "}")
             }
             ',' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::new(TokenType::Comma, ",")
+                self.move_index(1);
+                Token::new(self, TokenType::Comma, ",")
             }
             ';' => {
-                self.next_char();
-                self.allow_expr = true;
-                Token::new(TokenType::Semi, ";")
+                self.move_index(1);
+                Token::new(self, TokenType::Semi, ";")
+            }
+            ':' => {
+                self.move_index(1);
+                Token::new(self, TokenType::Colon, ":")
             }
             _ => {
                 if self.index == self.chars.len() {
-                    Token::new(TokenType::EOF, "EOF")
+                    Token::new(self, TokenType::EOF, "EOF")
                 } else {
                     self.unexpected();
                 }
@@ -132,21 +124,20 @@ impl<'a> Parser<'a> {
         let mut value = String::new();
         while self.check_valid_index()
             && match self.current_char {
-                'A'..='Z' | 'a'..='z' => true,
+                'A'..='Z' | 'a'..='z' | '0'..='9' => true,
                 _ => false,
             }
         {
             value.push(self.current_char);
-            self.next_char();
-        }
-        for kw in KEYWORDS.iter() {
-            if *kw == value {
-                return Token::new(TokenType::Keyword, &value);
-            }
+            self.move_index(1);
         }
 
-        self.allow_expr = false;
-        Token::new(TokenType::Identifier, &value)
+        // keyword
+        if is_keyword_str(&value) {
+            return Token::new(self, TokenType::Keyword, &value);
+        }
+
+        Token::new(self, TokenType::Identifier, &value)
     }
 
     // 读取一个数字 token
@@ -154,7 +145,7 @@ impl<'a> Parser<'a> {
         let mut value = String::new();
         if self.current_char == '-' {
             value.push('-');
-            self.next_char();
+            self.move_index(1);
         }
 
         while self.check_valid_index()
@@ -164,11 +155,10 @@ impl<'a> Parser<'a> {
             }
         {
             value.push(self.current_char);
-            self.next_char();
+            self.move_index(1);
         }
 
-        self.allow_expr = false;
-        Token::new(TokenType::Number, &value)
+        Token::new(self, TokenType::Number, &value)
     }
 
     // 跳过空白字符
@@ -179,7 +169,7 @@ impl<'a> Parser<'a> {
             || self.current_char == '\r'
         {
             if self.check_valid_index() {
-                self.next_char();
+                self.move_index(1);
             } else {
                 break;
             }
@@ -189,13 +179,12 @@ impl<'a> Parser<'a> {
     // 跳过注释
     pub fn skip_comment(&mut self) {
         while self.current_char == '/' && self.look_behind(1) == '/' {
-            self.next_char();
-            self.next_char();
+            self.move_index(2);
             while self.check_valid_index()
                 && self.current_char != '\n'
                 && self.current_char != '\r'
             {
-                self.next_char();
+                self.move_index(1);
             }
             self.skip_space();
         }

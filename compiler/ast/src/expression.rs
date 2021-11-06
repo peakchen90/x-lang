@@ -1,6 +1,5 @@
-use crate::node::Node;
+use crate::shared::{Kind, Node, TokenType};
 use crate::state::Parser;
-use crate::token::TokenType;
 
 impl<'a> Parser<'a> {
     // 解析表达式
@@ -38,9 +37,9 @@ impl<'a> Parser<'a> {
             if operator == "=" {
                 self.unexpected();
             }
+            self.next_token();
 
             // 解析可能更高优先级的右侧表达式，如: `1 + 2 * 3` 将解析 `2 * 3` 作为右值
-            self.next_token();
             let maybe_higher_precedence_expr =
                 self.parse_maybe_binary_expression(precedence);
             let right = self.parse_binary_expression_precedence(
@@ -74,9 +73,13 @@ impl<'a> Parser<'a> {
                 match next_token.token_type {
                     TokenType::ParenL => self.parse_call_expression(&value),
                     // 赋值表达式
-                    TokenType::Eq => {
-                        let left = Box::new(Node::Identifier { name: value });
+                    TokenType::Assign => {
+                        let left = Box::new(Node::Identifier {
+                            name: value,
+                            kind: Kind::Unknown,
+                        });
                         self.next_token();
+
                         let right = Box::new(self.parse_expression());
                         Node::AssignmentExpression {
                             left,
@@ -84,7 +87,10 @@ impl<'a> Parser<'a> {
                             operator: next_value,
                         }
                     }
-                    _ => Node::Identifier { name: value },
+                    _ => Node::Identifier {
+                        name: value,
+                        kind: Kind::Unknown,
+                    },
                 }
             }
             TokenType::Number => {
@@ -101,6 +107,7 @@ impl<'a> Parser<'a> {
     pub fn parse_call_expression(&mut self, callee_name: &str) -> Node {
         let callee = Box::new(Node::Identifier {
             name: callee_name.to_string(),
+            kind: Kind::None,
         });
 
         // arguments
