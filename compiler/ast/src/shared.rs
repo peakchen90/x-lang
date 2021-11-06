@@ -1,10 +1,8 @@
+use std::collections::HashMap;
 use std::ops::Deref;
 
 // 关键字
 const KEYWORDS: [&str; 3] = ["fn", "var", "return"];
-
-// 数据类型
-const KINDS: [&str; 1] = ["num"];
 
 fn array_index_of_str(arr: &[&str], value: &str) -> isize {
     for (i, v) in arr.iter().enumerate() {
@@ -20,23 +18,60 @@ pub fn is_keyword_str(str: &str) -> bool {
     array_index_of_str(&KEYWORDS, str) >= 0
 }
 
-// 判断是否为数据类型字符串
-pub fn is_kind_str(str: &str) -> bool {
-    array_index_of_str(&KINDS, str) >= 0
+#[derive(Debug, PartialEq, Eq, Serialize, Copy, Clone)]
+pub enum KindName {
+    Number,
 }
 
-// 校验数据类型标识符是否正确，不正确抛出错误
-pub fn validate_kind(kind: &str) {
-    if !is_kind_str(kind) {
-        panic!("Invalid kind: {}", kind);
+impl KindName {
+    // 通过字符串创建 KindName，无效类型将会抛错
+    pub fn get(kind: &str) -> Self {
+        if kind == "num" {
+            KindName::Number
+        } else {
+            panic!("Invalid kind: {}", kind)
+        }
+    }
+
+    // 返回类型名称字符串
+    pub fn to_string(&self) -> String {
+        match self {
+            KindName::Number => "num".to_string(),
+        }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Copy, Clone)]
 pub enum Kind {
-    Some(String),
-    Unknown, // 暂时未知的类型
-    None,    // 无类型（标识符）
+    Some(KindName),
+    Infer, // 推断的类型
+    None,  // 无类型（针对某些标识符）
+}
+
+impl Kind {
+    // 类型是否是精确的
+    pub fn is_exact(&self) -> bool {
+        match self {
+            Kind::Some(_) => true,
+            _ => false,
+        }
+    }
+
+    // 读取 KindName
+    pub fn read_kind_name(&self) -> Option<&KindName> {
+        match self {
+            Kind::Some(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    // 返回类型字符串，非精确的类型返回 ""
+    pub fn to_string(&self) -> String {
+        match self {
+            Kind::Some(v) => v.to_string(),
+            _ => String::from(""),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -115,17 +150,37 @@ pub enum Node {
 }
 
 impl Node {
-    // pub fn read_number_value(&self) -> f64 {
-    //     match self {
-    //         Node::NumberLiteral { value } => *value,
-    //         _ => panic!("Error"),
-    //     }
-    // }
-    //
-    // pub fn read_identifier_name<T>(&self) -> &str {
-    //     match self {
-    //         Node::Identifier { name } => name,
-    //         _ => panic!("Error"),
-    //     }
-    // }
+    // 返回 node 类型名
+    pub fn node_type(&self) -> String {
+        let str = match self {
+            Node::Program { .. } => "Program",
+            Node::FunctionDeclaration { .. } => "FunctionDeclaration",
+            Node::VariableDeclaration { .. } => "VariableDeclaration",
+            Node::BlockStatement { .. } => "BlockStatement",
+            Node::ReturnStatement { .. } => "ReturnStatement",
+            Node::ExpressionStatement { .. } => "ExpressionStatement",
+            Node::CallExpression { .. } => "CallExpression",
+            Node::BinaryExpression { .. } => "BinaryExpression",
+            Node::AssignmentExpression { .. } => "AssignmentExpression",
+            Node::Identifier { .. } => "Identifier",
+            Node::NumberLiteral { .. } => "NumberLiteral",
+        };
+        str.to_string()
+    }
+
+    // 读取一个数字节点的值
+    pub fn read_number(&self) -> f64 {
+        match self {
+            Node::NumberLiteral { value } => *value,
+            _ => panic!("Error"),
+        }
+    }
+
+    // 读取一个标识符的名称及类型
+    pub fn read_identifier(&self) -> (&str, &Kind) {
+        match self {
+            Node::Identifier { name, kind } => (name, kind),
+            _ => panic!("Error"),
+        }
+    }
 }

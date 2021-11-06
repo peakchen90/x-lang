@@ -1,0 +1,16 @@
+[package]
+name = "x-lang-llvm"
+version = "0.0.1"
+authors = ["peakchen90 <1558267774@qq.com>"]
+edition = "2018"
+publish = false
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+cc = "1"
+
+[dependencies]
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm13-0"] }
+

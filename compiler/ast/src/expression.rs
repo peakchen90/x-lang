@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
                     TokenType::Assign => {
                         let left = Box::new(Node::Identifier {
                             name: value,
-                            kind: Kind::Unknown,
+                            kind: Kind::Infer,
                         });
                         self.next_token();
 
@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
                     }
                     _ => Node::Identifier {
                         name: value,
-                        kind: Kind::Unknown,
+                        kind: Kind::Infer,
                     },
                 }
             }

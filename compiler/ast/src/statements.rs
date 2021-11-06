@@ -1,4 +1,4 @@
-use crate::shared::{Kind, Node, TokenType, validate_kind};
+use crate::shared::{Kind, KindName, Node, TokenType};
 use crate::state::Parser;
 
 impl<'a> Parser<'a> {
@@ -71,8 +71,7 @@ impl<'a> Parser<'a> {
             self.consume_or_panic(TokenType::Colon);
             self.expect(TokenType::Identifier);
             let kind_str = self.current_token.value.to_string();
-            validate_kind(&kind_str);
-            let kind = Kind::Some(kind_str);
+            let kind = Kind::Some(KindName::get(&kind_str));
 
             arguments.push(Box::new(Node::Identifier { name, kind }));
             self.next_token();
@@ -85,8 +84,7 @@ impl<'a> Parser<'a> {
         // return kind
         self.consume_or_panic(TokenType::ReturnSym);
         let kind_str = self.current_token.value.to_string();
-        validate_kind(&kind_str);
-        let return_kind = Kind::Some(kind_str);
+        let return_kind = Kind::Some(KindName::get(&kind_str));
         self.next_token();
 
         // body
@@ -128,12 +126,11 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         // maybe variable kind
-        let mut kind = Kind::Unknown;
+        let mut kind = Kind::Infer;
         if self.consume(TokenType::Colon) {
             self.expect(TokenType::Identifier);
             let kind_str = self.current_token.value.to_string();
-            validate_kind(&kind_str);
-            kind = Kind::Some(kind_str);
+            kind = Kind::Some(KindName::get(&kind_str));
             self.next_token();
         }
 
