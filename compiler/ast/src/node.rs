@@ -1,7 +1,7 @@
 #[derive(Debug, Serialize)]
 pub enum Node {
     Program {
-        body: Vec<Box<Node>>
+        body: Vec<Box<Node>>,
     },
 
     //  statements
@@ -15,13 +15,13 @@ pub enum Node {
         init: Box<Node>,
     },
     BlockStatement {
-        body: Vec<Box<Node>>
+        body: Vec<Box<Node>>,
     },
     ReturnStatement {
-        argument: Box<Node>
+        argument: Box<Node>,
     },
     ExpressionStatement {
-        expression: Box<Node>
+        expression: Box<Node>,
     },
 
     // expressions
@@ -40,12 +40,12 @@ pub enum Node {
         operator: String,
     },
     Identifier {
-        name: String
+        name: String,
     },
     // StringLiteral {
     //     value: String
     // },
     NumberLiteral {
-        value: f64
+        value: f64,
     },
 }

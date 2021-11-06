@@ -48,7 +48,7 @@ impl Token {
 
 const KEYWORDS: [&str; 3] = ["fn", "var", "return"];
 
-impl Parser {
+impl<'a> Parser<'a> {
     // 读取下一个 token
     pub fn next_token(&mut self) {
         self.skip_space();

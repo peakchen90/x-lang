@@ -2,7 +2,7 @@ use crate::node::Node;
 use crate::state::Parser;
 use crate::token::TokenType;
 
-impl Parser {
+impl<'a> Parser<'a> {
     // 解析一条语句
     pub fn parse_statement(&mut self) -> Node {
         // 结尾分号是否可以省略

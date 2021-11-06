@@ -2,22 +2,22 @@ use crate::node::Node;
 use crate::token::{Token, TokenType};
 
 #[derive(Debug)]
-pub struct Parser {
-    pub input: String,
-    pub chars: Vec<char>, // 字符 vec
-    pub index: usize, // 光标位置
-    pub is_start: bool, // 光标是否在开始位置
-    pub current_char: char, // 当前字符
-    pub current_token: Token, // 当前 token
-    pub allow_expr: bool, // 当前上下文是否允许表达式
+pub struct Parser<'a> {
+    pub input: &'a str,
+    pub chars: Vec<char>,           // 字符 vec
+    pub index: usize,               // 光标位置
+    pub is_start: bool,             // 光标是否在开始位置
+    pub current_char: char,         // 当前字符
+    pub current_token: Token,       // 当前 token
+    pub allow_expr: bool,           // 当前上下文是否允许表达式
     pub current_block_scope: usize, // 当前进入到第几层块级作用域
-    pub node: Option<Node>, // 解析的 ast
+    pub node: Option<Node>,         // 解析的 ast
 }
 
-impl Parser {
-    pub fn new(input: &str) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(input: &'a str) -> Self {
         let mut parser = Parser {
-            input: String::from(input),
+            input,
             chars: input.chars().collect(),
             index: 0,
             is_start: true,
