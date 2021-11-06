@@ -1,0 +1,8 @@
+[*]
+indent_style = space
+tab_width = 4
+max_line_length = 80
+trim_trailing_whitespace = true
+
+[*.md]
+max_line_length = 200
