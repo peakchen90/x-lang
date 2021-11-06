@@ -21,6 +21,7 @@ pub fn is_keyword_str(str: &str) -> bool {
 #[derive(Debug, PartialEq, Eq, Serialize, Copy, Clone)]
 pub enum KindName {
     Number,
+    Void,
 }
 
 impl KindName {
@@ -28,6 +29,11 @@ impl KindName {
     pub fn get(kind: &str) -> Self {
         if kind == "num" {
             KindName::Number
+        } else if kind == "void" {
+            // if !allow_void {
+            //     panic!("Invalid kind: {}", kind);
+            // }
+            KindName::Void
         } else {
             panic!("Invalid kind: {}", kind)
         }
@@ -37,6 +43,7 @@ impl KindName {
     pub fn to_string(&self) -> String {
         match self {
             KindName::Number => "num".to_string(),
+            KindName::Void => "void".to_string(),
         }
     }
 }
@@ -45,31 +52,34 @@ impl KindName {
 pub enum Kind {
     Some(KindName),
     Infer, // 推断的类型
-    None,  // 无类型（针对某些标识符）
+    None,  // 无类型 或者 void
 }
 
 impl Kind {
     // 类型是否是精确的
     pub fn is_exact(&self) -> bool {
-        match self {
-            Kind::Some(_) => true,
-            _ => false,
+        if let Kind::Some(v) = self {
+            true
+        } else {
+            false
         }
     }
 
     // 读取 KindName
     pub fn read_kind_name(&self) -> Option<&KindName> {
-        match self {
-            Kind::Some(v) => Some(v),
-            _ => None,
+        if let Kind::Some(v) = self {
+            Some(v)
+        } else {
+            None
         }
     }
 
     // 返回类型字符串，非精确的类型返回 ""
     pub fn to_string(&self) -> String {
-        match self {
-            Kind::Some(v) => v.to_string(),
-            _ => String::from(""),
+        if let Kind::Some(v) = self {
+            v.to_string()
+        } else {
+            String::from("")
         }
     }
 }

@@ -81,11 +81,13 @@ impl<'a> Parser<'a> {
         }
         self.consume_or_panic(TokenType::ParenR);
 
-        // return kind
-        self.consume_or_panic(TokenType::ReturnSym);
-        let kind_str = self.current_token.value.to_string();
-        let return_kind = Kind::Some(KindName::get(&kind_str));
-        self.next_token();
+        // maybe return kind
+        let mut return_kind = Kind::Some(KindName::Void);
+        if self.consume(TokenType::ReturnSym) {
+            let kind_str = self.current_token.value.to_string();
+            return_kind = Kind::Some(KindName::get(&kind_str));
+            self.next_token();
+        }
 
         // body
         let body = Box::new(self.parse_block_statement());
