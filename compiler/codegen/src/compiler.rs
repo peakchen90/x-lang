@@ -10,6 +10,7 @@ use inkwell::values::{
     FunctionValue, PointerValue,
 };
 use std::ops::Deref;
+use inkwell::basic_block::BasicBlock;
 use x_lang_ast::shared::{Kind, KindName, Node};
 use x_lang_ast::visitor::Visitor;
 
