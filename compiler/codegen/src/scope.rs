@@ -1,4 +1,4 @@
-use inkwell::values::PointerValue;
+use inkwell::values::{FunctionValue, PointerValue};
 use std::collections::HashMap;
 use x_lang_ast::shared::Kind;
 
@@ -7,10 +7,11 @@ pub enum ScopeType<'ctx> {
     Function {
         return_kind: Kind,
         ptr: PointerValue<'ctx>,
+        fn_val: FunctionValue<'ctx>,
     },
     Variable {
         kind: Kind,
-        ptr: PointerValue<'ctx>,
+        ptr: Option<PointerValue<'ctx>>,
     },
 }
 
@@ -26,14 +27,18 @@ impl<'ctx> ScopeType<'ctx> {
         !self.is_fn()
     }
 
-    pub fn get_fn(&self) -> (&Kind, &PointerValue<'ctx>) {
+    pub fn get_fn(&self) -> (&Kind, &FunctionValue<'ctx>, &PointerValue<'ctx>) {
         match self {
-            ScopeType::Function { return_kind, ptr } => (return_kind, ptr),
+            ScopeType::Function {
+                return_kind,
+                fn_val,
+                ptr,
+            } => (return_kind, fn_val, ptr),
             ScopeType::Variable { .. } => panic!("Error"),
         }
     }
 
-    pub fn get_var(&self) -> (&Kind, &PointerValue<'ctx>) {
+    pub fn get_var(&self) -> (&Kind, &Option<PointerValue<'ctx>>) {
         match self {
             ScopeType::Function { .. } => panic!("Error"),
             ScopeType::Variable { kind, ptr } => (kind, ptr),
@@ -116,8 +121,8 @@ impl<'ctx> BlockScope<'ctx> {
         scope.add(name, scope_type);
     }
 
-    // 作用域范围内搜索变量
-    pub fn search_variable(&self, name: &str) -> Option<&ScopeType<'ctx>> {
+    // 作用域范围内搜索变量或方法声明
+    pub fn search_by_name(&self, name: &str) -> Option<&ScopeType<'ctx>> {
         for scope in self._scopes.iter().rev() {
             if scope.has(name) {
                 return scope.get(name);

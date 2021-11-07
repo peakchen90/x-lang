@@ -4,6 +4,6 @@ fn add(a: num, b: num) {
 }
 
 var n: num = 3;
-var result = add(n, 4.2);
+// var result = add(n, 4.2);
 
-print(result); // 调用系统内置方法
+// print(result); // 调用系统内置方法

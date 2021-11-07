@@ -6,4 +6,4 @@ pub mod shared;
 pub mod state;
 pub mod statements;
 pub mod token;
-pub mod visit;
+pub mod visitor;

@@ -10,6 +10,7 @@
 - [Getting Started with LLVM Core Libraries（中文版）](https://getting-started-with-llvm-core-libraries-zh-cn.readthedocs.io/zh_CN/latest/index.html)
 - [用 LLVM 开发新语言](https://llvm-tutorial-cn.readthedocs.io/en/latest/index.html) (已过时)
 - [LLVM 中文文档](https://llvm.liuxfe.com/)
+- [LLVM IR入门指南](https://github.com/Evian-Zhang/llvm-ir-tutorial)
 
 ## 资源
 

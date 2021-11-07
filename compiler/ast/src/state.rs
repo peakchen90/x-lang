@@ -1,4 +1,4 @@
-use crate::shared::{ Node, TokenType};
+use crate::shared::{Node, TokenType};
 use crate::token::Token;
 
 #[derive(Debug)]

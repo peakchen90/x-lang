@@ -2,7 +2,8 @@
 members = [
     "compiler/ast",
 #    "compiler/llvm",
-    "compiler/codegen"
+    "compiler/codegen",
+#    "compiler/codegen2"
 ]
 
 [package]

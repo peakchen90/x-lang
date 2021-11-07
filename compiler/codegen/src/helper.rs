@@ -1,41 +1,53 @@
-use inkwell::types::{ FloatType, VoidType};
-use inkwell::values::FloatValue;
+use crate::compiler::Compiler;
+use crate::scope::ScopeType;
+use inkwell::types::{FloatType, VoidType};
+use inkwell::values::{
+    BasicValueEnum, FloatValue, FunctionValue, PointerValue,
+};
+use x_lang_ast::shared::Kind;
 
-/// LLVM 数据类型
-#[derive(Debug)]
-pub enum LLVMDataType<'ctx> {
-    Number(FloatType<'ctx>),
-    Void(VoidType<'ctx>),
+// 永从不会发生，用于避免编译器报错
+pub fn never() -> ! {
+    panic!("NEVER")
 }
 
-impl<'ctx> LLVMDataType<'ctx> {
-    pub fn get_number_type(&self) -> &FloatType<'ctx> {
-        match self {
-            LLVMDataType::Number(v) => v,
-            _ => panic!("Error"),
-        }
+impl<'a, 'ctx> Compiler<'a, 'ctx> {
+    pub fn build_number_type(&self) -> FloatType<'ctx> {
+        self.context.f64_type()
     }
 
-    pub fn get_void_type(&self) -> &VoidType<'ctx> {
-        match self {
-            LLVMDataType::Void(v) => v,
-            _ => panic!("Error"),
-        }
+    pub fn build_number_value(&self, value: f64) -> FloatValue<'ctx> {
+        self.build_number_type().const_float(value)
     }
-}
 
-/// LLVM 数据值
-#[derive(Debug)]
-pub enum LLVMDataValue<'ctx> {
-    Number(FloatValue<'ctx>),
-    Void,
-}
+    pub fn build_void_type(&self) -> VoidType<'ctx> {
+        self.context.void_type()
+    }
 
-impl<'ctx> LLVMDataValue<'ctx> {
-    pub fn read_number(&self) -> &FloatValue<'ctx> {
-        match self {
-            LLVMDataValue::Number(v) => v,
-            _ => panic!("Error"),
-        }
+    pub fn get_declare_variable_ptr(
+        &self,
+        name: &str,
+    ) -> &Option<PointerValue<'ctx>> {
+        let (.., ptr) = self
+            .scope
+            .search_by_name(name)
+            .expect(&format!("Variable `{}` is not found", name))
+            .get_var();
+        ptr
+    }
+
+    pub fn get_declare_fn(
+        &self,
+        name: &str,
+    ) -> (&Kind, &FunctionValue<'ctx>, &PointerValue<'ctx>) {
+        self.scope
+            .search_by_name(name)
+            .expect(&format!("Function `{}` is not declare", name))
+            .get_fn()
+    }
+
+    pub fn get_declare_fn_val(&self, name: &str) -> &FunctionValue<'ctx> {
+        let (_, fn_val, _) = self.get_declare_fn(name);
+        fn_val
     }
 }

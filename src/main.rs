@@ -15,7 +15,6 @@ fn ast_test() {
     println!("Success: write ast at: .ast.json");
 
     Compiler::compile(&node);
-
 }
 
 fn main() {
