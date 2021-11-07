@@ -43,39 +43,69 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         compiler.module.print_to_stderr();
     }
 
-    fn create_block_stack_alloc(&self, name: &str) {
-        // let builder = self.context.create_builder();
-        // builder.
-        // self.builder.build_alloca(name, "");
-    }
-
-    fn put_scope(
+    fn put_variable(
         &mut self,
         name: &str,
         kind: Kind,
         value: Option<BasicValueEnum<'ctx>>,
+        is_arg: bool, // 是否是函数参数
     ) {
         let mut current = self.scope.current().unwrap();
         if current.has(name) {
             panic!("Scope name `{}` is exist", name);
         }
 
+        // 内存中的描述名称
+        let mem_name = match is_arg {
+            true => format!("argument.{}", name),
+            false => name.to_string(),
+        };
         let ptr = match kind.read_kind_name().unwrap() {
             KindName::Number => {
                 let ty = self.build_number_type();
-                let ptr = self.builder.build_alloca(ty, name);
+                let ptr = self.builder.build_alloca(ty, &mem_name);
                 if let Some(v) = value {
                     self.builder.build_store(ptr, v.into_float_value());
                 }
                 Some(ptr)
             }
-            KindName::Void => {
-                None
-            }
+            KindName::Void => None,
         };
 
         let scope_type = ScopeType::Variable { kind, ptr };
         self.scope.put_variable(name, scope_type);
+    }
+
+    fn put_function(
+        &mut self,
+        name: &str,
+        fn_value: &FunctionValue<'ctx>,
+        arg_kind_names: Vec<KindName>,
+        return_kind: Kind,
+    ) {
+        let mut current = self.scope.current().unwrap();
+        if current.has(name) {
+            panic!("Scope name `{}` is exist", name);
+        }
+
+        let scope_type = ScopeType::Function {
+            fn_value: *fn_value,
+            return_kind,
+            arg_kind_names,
+        };
+        self.scope.put_variable(name, scope_type);
+    }
+
+    fn push_block_scope(&mut self, basic_block: &BasicBlock<'ctx>) {
+        self.scope.push(basic_block);
+        self.builder.position_at_end(*basic_block);
+    }
+
+    fn pop_block_scope(&mut self) {
+        self.scope.pop();
+        if let Some(v) = self.scope.current() {
+            self.builder.position_at_end(v.basic_block);
+        }
     }
 
     // 推断表达式的返回类型名称
@@ -88,7 +118,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 match self.scope.search_by_name(id) {
                     Some(v) => {
                         if v.is_fn() {
-                            let (return_kind, ..) = v.get_fn();
+                            let (.., return_kind) = v.get_fn();
                             ret_kind = *return_kind;
                             visitor.stop();
                         }
@@ -113,8 +143,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     Some(v) => {
                         if v.is_var() {
                             if kind.is_exact() {
-                                let (kind, ..) = v.get_fn();
-                                ret_kind = *kind;
+                                let (.., return_kind) = v.get_fn();
+                                ret_kind = *return_kind;
                                 visitor.stop();
                             }
                         }
@@ -191,14 +221,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     kind = &temp_borrowed;
                 }
                 let init_value = self.compile_expression(init);
-                self.put_scope(
+                self.put_variable(
                     id,
                     *kind,
                     Some(init_value.as_basic_value_enum()),
+                    false
                 );
             }
             Node::BlockStatement { body } => {
-                self.compile_block_statement(body);
+                self.compile_block_statement(body, false);
             }
             Node::ReturnStatement { argument } => {
                 self.compile_expression(argument.deref());
@@ -219,8 +250,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         body: &Vec<Box<Node>>,
         return_kind: &Kind,
     ) {
-        self.scope.push();
-
         let fn_type = match return_kind.read_kind_name().unwrap() {
             KindName::Number => {
                 self.context.f64_type().fn_type(args.as_slice(), false)
@@ -230,43 +259,62 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             }
         };
 
-        let fn_val = self.module.add_function(name, fn_type, None);
+        let fn_value = self.module.add_function(name, fn_type, None);
 
         // 为每个参数设置名称
-        for (i, arg) in fn_val.get_param_iter().enumerate() {
+        for (i, arg) in fn_value.get_param_iter().enumerate() {
             let (arg_name, kind) = arguments[i].deref().read_identifier();
             match kind.read_kind_name().unwrap() {
                 KindName::Number => {
                     let fv = arg.into_float_value();
                     fv.set_name(arg_name);
-                    self.put_scope(arg_name, *kind, None)
                 }
                 KindName::Void => {}
             }
         }
 
-        let block = self.context.append_basic_block(fn_val, "");
-        self.builder.position_at_end(block);
+        let block = self.context.append_basic_block(fn_value, "");
+        self.push_block_scope(&block); // 作用域入栈
+
+        // 设置形参
+        for (i, arg) in fn_value.get_param_iter().enumerate() {
+            let (arg_name, kind) = arguments[i].deref().read_identifier();
+            let arg_value = fn_value.get_nth_param(i as u32).unwrap();
+            self.put_variable(arg_name, *kind, Some(arg_value), true);
+        }
 
         // compile function body
-        self.compile_block_statement(body);
+        self.compile_block_statement(body, true);
 
-        self.scope.pop();
+        self.pop_block_scope();
     }
 
-    fn compile_block_statement(&mut self, node: &Vec<Box<Node>>) {
-        self.scope.push();
-        for stat in node {
-            self.compile_statement(stat.deref());
+    fn compile_block_statement(
+        &mut self,
+        node: &Vec<Box<Node>>,
+        is_fn_block: bool,
+    ) {
+        if !is_fn_block {
+            // TODO: 暂不实现块作用域
+            self.compile_function(
+                "anonymous",
+                &vec![],
+                &vec![],
+                node,
+                &Kind::Some(KindName::Void),
+            );
+        } else {
+            for stat in node {
+                self.compile_statement(stat.deref());
+            }
         }
-        self.scope.pop();
     }
 
     fn compile_expression(&self, node: &Node) -> BasicValueEnum<'ctx> {
         match node {
             Node::CallExpression { callee, arguments } => {
                 let (name, ..) = callee.deref().read_identifier();
-                let fn_val = self.get_declare_fn_val(name);
+                let fn_value = self.get_declare_fn_val(name);
                 let args = arguments.iter();
                 let args = args.map(|arg| {
                     let value = self.compile_expression(arg.deref());
@@ -277,7 +325,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let args = args.as_slice();
 
                 self.builder
-                    .build_call(*fn_val, args, &format!("call_{}", name))
+                    .build_call(*fn_value, args, &format!("call_{}", name))
                     .try_as_basic_value()
                     .left()
                     .unwrap()
@@ -297,7 +345,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 operator,
             } => {
                 let (left_var, ..) = left.deref().read_identifier();
-                let ptr = self.get_declare_variable_ptr(left_var);
+                let ptr = self.get_declare_var_ptr(left_var);
                 let right = self.compile_expression(right.deref());
                 match ptr {
                     Some(ptr) => self.builder.build_store(*ptr, right),
@@ -306,7 +354,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 right
             }
             Node::Identifier { name, .. } => {
-                let ptr = self.get_declare_variable_ptr(name);
+                let ptr = self.get_declare_var_ptr(name);
                 match ptr {
                     Some(ptr) => self.builder.build_load(*ptr, name),
                     None => panic!("Can not get value on void type"),

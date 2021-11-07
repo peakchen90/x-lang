@@ -1,13 +1,14 @@
+use inkwell::basic_block::BasicBlock;
 use inkwell::values::{FunctionValue, PointerValue};
 use std::collections::HashMap;
-use x_lang_ast::shared::Kind;
+use x_lang_ast::shared::{Kind, KindName};
 
 #[derive(Debug)]
 pub enum ScopeType<'ctx> {
     Function {
+        fn_value: FunctionValue<'ctx>,
         return_kind: Kind,
-        ptr: PointerValue<'ctx>,
-        fn_val: FunctionValue<'ctx>,
+        arg_kind_names: Vec<KindName>,
     },
     Variable {
         kind: Kind,
@@ -27,13 +28,13 @@ impl<'ctx> ScopeType<'ctx> {
         !self.is_fn()
     }
 
-    pub fn get_fn(&self) -> (&Kind, &FunctionValue<'ctx>, &PointerValue<'ctx>) {
+    pub fn get_fn(&self) -> (&FunctionValue<'ctx>, &Vec<KindName>, &Kind) {
         match self {
             ScopeType::Function {
+                fn_value,
+                arg_kind_names,
                 return_kind,
-                fn_val,
-                ptr,
-            } => (return_kind, fn_val, ptr),
+            } => (fn_value, arg_kind_names, return_kind),
             ScopeType::Variable { .. } => panic!("Error"),
         }
     }
@@ -48,12 +49,14 @@ impl<'ctx> ScopeType<'ctx> {
 
 #[derive(Debug)]
 pub struct Scope<'ctx> {
+    pub basic_block: BasicBlock<'ctx>,
     _map: HashMap<String, ScopeType<'ctx>>,
 }
 
 impl<'ctx> Scope<'ctx> {
-    pub fn new() -> Self {
+    pub fn new(basic_block: &BasicBlock<'ctx>) -> Self {
         Scope {
+            basic_block: *basic_block,
             _map: HashMap::new(),
         }
     }
@@ -100,8 +103,8 @@ impl<'ctx> BlockScope<'ctx> {
     }
 
     // 将一个新的块级作用域压入栈中
-    pub fn push(&mut self) {
-        let scope = Scope::new();
+    pub fn push(&mut self, basic_block: &BasicBlock<'ctx>) {
+        let scope = Scope::new(basic_block);
         self._scopes.push(scope);
     }
 
