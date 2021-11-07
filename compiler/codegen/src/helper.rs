@@ -6,8 +6,6 @@ use inkwell::types::{FloatType, VoidType};
 use inkwell::values::{
     BasicValue, BasicValueEnum, FloatValue, FunctionValue, PointerValue,
 };
-use llvm_sys::comdat::LLVMGetOrInsertComdat;
-use llvm_sys::core::LLVMGetGlobalContext;
 use x_lang_ast::shared::{Kind, KindName};
 
 // 永从不会发生，用于避免编译器报错

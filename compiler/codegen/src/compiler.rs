@@ -5,6 +5,7 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine, JitFunction};
 use inkwell::module::Module;
+use inkwell::targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple};
 use inkwell::types::{BasicMetadataTypeEnum, FloatType, FunctionType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallableValue,
@@ -12,6 +13,7 @@ use inkwell::values::{
 };
 use inkwell::OptimizationLevel;
 use std::ops::Deref;
+use std::path::Path;
 use x_lang_ast::shared::{Kind, KindName, Node};
 use x_lang_ast::visitor::Visitor;
 
@@ -57,6 +59,24 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 "\n================================ OUTPUT ================================="
             );
         }
+
+        // Target::initialize_all(&InitializationConfig::default());
+        // let target = Target::from_name("x86-64").unwrap();
+        // let target_machine = target
+        //     .create_target_machine(
+        //         &TargetMachine::get_default_triple(),
+        //         "x86-64",
+        //         "+avx2",
+        //         OptimizationLevel::Default,
+        //         RelocMode::Default,
+        //         CodeModel::Default,
+        //     )
+        //     .unwrap();
+        // target_machine.write_to_file(
+        //     module,
+        //     FileType::Object,
+        //     Path::new("abc"),
+        // );
 
         unsafe {
             execution_engine
