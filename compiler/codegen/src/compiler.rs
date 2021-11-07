@@ -392,6 +392,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let args = args.map(|arg| {
                     let arg = arg.deref();
                     let infer_arg_kind = self.infer_expression_kind(arg);
+                    let value = self.compile_expression(arg);
 
                     // 校验参数
                     if !match infer_arg_kind {
@@ -403,8 +404,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             name
                         );
                     }
-
-                    let value = self.compile_expression(arg);
                     i += 1;
                     BasicMetadataValueEnum::from(value)
                 });
