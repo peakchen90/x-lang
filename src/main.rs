@@ -1,3 +1,5 @@
+mod cli;
+
 use std::fs;
 use std::process::Command;
 use x_lang_ast::state::Parser;
@@ -14,9 +16,11 @@ fn ast_test() {
     fs::write(".ast.json", format_json_str).unwrap();
     println!("Success: write ast at: .ast.json");
 
-    Compiler::compile(&node);
+    Compiler::compile(&node, true);
 }
 
 fn main() {
     ast_test();
+
+    // cli::handle_commander();
 }

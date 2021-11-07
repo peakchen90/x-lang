@@ -20,51 +20,47 @@ pub struct Compiler<'a, 'ctx> {
     pub builder: &'a Builder<'ctx>,
     pub module: &'a Module<'ctx>,
     pub scope: &'a mut BlockScope<'ctx>,
-    // pub execution_engine: ExecutionEngine<'ctx>,
+    pub execution_engine: &'a ExecutionEngine<'ctx>,
     bootstrap_fn: Option<FunctionValue<'ctx>>,
 }
-type ROOTFunc = unsafe extern "C" fn(f64, f64) -> f64;
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
-    pub fn compile(ast: &Node) {
+    pub fn compile(ast: &Node, is_debug: bool) {
         let context = &Context::create();
         let module = &context.create_module("main");
         let builder = &context.create_builder();
         let scope = &mut BlockScope::new();
+        let execution_engine = &module
+            .create_jit_execution_engine(OptimizationLevel::None)
+            .unwrap();
 
         let mut compiler = Compiler {
             context,
             module,
             builder,
             scope,
+            execution_engine,
             bootstrap_fn: None,
         };
 
+        // 开始编译
         compiler.compile_program(ast);
 
-        println!(" ========================= PRINT IR ============================\n");
+        if is_debug {
+            // 控制台打印 IR 码
+            println!(
+                "\n================================ LLVM-IR ================================"
+            );
+            module.print_to_stderr();
 
-        // 控制台打印 IR 码
-        compiler.module.print_to_stderr();
-
-        println!(
-            " ========================= Run ============================\n"
-        );
-
-        let execution_engine = module
-            .create_jit_execution_engine(OptimizationLevel::None)
-            .unwrap();
+            println!(
+                "\n================================ OUTPUT ================================="
+            );
+        }
 
         unsafe {
             execution_engine
                 .run_function(compiler.bootstrap_fn.unwrap(), &vec![]);
-        }
-
-        unsafe {
-            let root: Option<JitFunction<ROOTFunc>> =
-                execution_engine.get_function("add").ok();
-            let root = root.ok_or("Error").unwrap();
-            println!("{}", root.call(1.0, 2.0))
         }
     }
 
@@ -129,7 +125,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     fn pop_block_scope(&mut self) {
         self.scope.pop();
         if let Some(v) = self.scope.current() {
-            self.builder.position_at_end(v.basic_block);
+            if let Some(b) = v.basic_block {
+                self.builder.position_at_end(b);
+            }
         }
     }
 
@@ -188,10 +186,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     fn compile_program(&mut self, node: &Node) {
+        self.inject_build_in();
+
         match node {
             Node::Program { body } => {
                 self.bootstrap_fn = Some(self.compile_function(
-                    "BOOTSTRAP",
+                    "main",
                     &vec![],
                     &vec![],
                     body,

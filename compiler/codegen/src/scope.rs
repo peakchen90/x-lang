@@ -49,14 +49,14 @@ impl<'ctx> ScopeType<'ctx> {
 
 #[derive(Debug)]
 pub struct Scope<'ctx> {
-    pub basic_block: BasicBlock<'ctx>,
+    pub basic_block: Option<BasicBlock<'ctx>>,
     _map: HashMap<String, ScopeType<'ctx>>,
 }
 
 impl<'ctx> Scope<'ctx> {
-    pub fn new(basic_block: &BasicBlock<'ctx>) -> Self {
+    pub fn new(basic_block: Option<BasicBlock<'ctx>>) -> Self {
         Scope {
-            basic_block: *basic_block,
+            basic_block,
             _map: HashMap::new(),
         }
     }
@@ -104,8 +104,12 @@ impl<'ctx> BlockScope<'ctx> {
 
     // 将一个新的块级作用域压入栈中
     pub fn push(&mut self, basic_block: &BasicBlock<'ctx>) {
-        let scope = Scope::new(basic_block);
+        let scope = Scope::new(Some(*basic_block));
         self._scopes.push(scope);
+    }
+
+    pub fn push_without_block(&mut self) {
+        self._scopes.push(Scope::new(None));
     }
 
     // 当前块级作用域出栈

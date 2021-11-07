@@ -336,5 +336,6 @@ name = "x-lang-codegen"
 version = "0.0.1"
 dependencies = [
  "inkwell",
+ "llvm-sys",
  "x-lang-ast",
 ]

@@ -11,3 +11,4 @@ publish = false
 [dependencies]
 x-lang-ast = { path = "../ast" }
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm13-0"] }
+llvm-sys = "130"
