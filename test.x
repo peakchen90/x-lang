@@ -1,15 +1,9 @@
-fn get() -> num {
-    return 100 / 50;
-}
-
 // 注释
-fn add(a: num, b: num)->num {
-    return a + b ;
+fn add(a: num, b: num) -> num {
+    return a + b;
 }
 
-var a = add(4,2);
+var n = ((3 + 5) / 0.000000003) * 5;
+var result = add(n, 4.2);
 
-print(get()*a);
-print(get()*a);
-print(get()*a);
-print(get()*a);
+print(result); // 调用系统内置方法

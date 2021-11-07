@@ -27,7 +27,7 @@ impl Visitor {
         }
         callback(node, self);
 
-        match node.deref() {
+        match node {
             Node::Program { body } => {
                 for stat in body.iter() {
                     if self.is_stop {

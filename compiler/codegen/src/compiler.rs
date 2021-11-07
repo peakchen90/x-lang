@@ -5,7 +5,10 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine, JitFunction};
 use inkwell::module::Module;
-use inkwell::targets::{CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple};
+use inkwell::targets::{
+    CodeModel, FileType, InitializationConfig, RelocMode, Target,
+    TargetMachine, TargetTriple,
+};
 use inkwell::types::{BasicMetadataTypeEnum, FloatType, FunctionType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallableValue,
@@ -185,9 +188,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 Kind::Infer => match self.scope.search_by_name(name) {
                     Some(v) => {
                         if v.is_var() {
+                            let (kind, ..) = v.get_var();
                             if kind.is_exact() {
-                                let (.., return_kind) = v.get_fn();
-                                ret_kind = *return_kind;
+                                ret_kind = *kind;
                                 visitor.stop();
                             }
                         }
