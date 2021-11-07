@@ -1,5 +1,5 @@
 // 注释
-fn add(a: num, b: num) -> num {
+fn add(a: num, b: num) {
     return a + b;
 }
 

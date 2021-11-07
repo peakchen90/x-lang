@@ -1,43 +1,24 @@
-use inkwell::builder::Builder;
-use inkwell::values::FloatValue;
+use inkwell::values::PointerValue;
 use std::collections::HashMap;
-use x_lang_ast::shared::{Kind, KindName};
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum KindValue<'ctx> {
-    Number(FloatValue<'ctx>),
-}
-
-impl<'ctx> KindValue<'ctx> {
-    pub fn read_number(&self) -> &FloatValue<'ctx> {
-        match self {
-            KindValue::Number(v) => v,
-        }
-    }
-}
+use x_lang_ast::shared::Kind;
 
 #[derive(Debug)]
-pub struct VariableDecl<'ctx> {
-    pub kind: Kind,
-    pub value: KindValue<'ctx>,
+pub enum ScopeType<'ctx> {
+    Function {
+        return_kind: Kind,
+        ptr: PointerValue<'ctx>,
+    },
+    Variable {
+        kind: Kind,
+        ptr: PointerValue<'ctx>,
+    },
 }
 
-#[derive(Debug)]
-pub struct FunctionDecl {
-    pub return_kind: Kind,
-}
-
-#[derive(Debug)]
-pub enum ScopeDecl<'ctx> {
-    Function(FunctionDecl),
-    Variable(VariableDecl<'ctx>),
-}
-
-impl<'ctx> ScopeDecl<'ctx> {
+impl<'ctx> ScopeType<'ctx> {
     pub fn is_fn(&self) -> bool {
         match self {
-            ScopeDecl::Function(_) => true,
-            ScopeDecl::Variable(_) => false,
+            ScopeType::Function { .. } => true,
+            ScopeType::Variable { .. } => false,
         }
     }
 
@@ -45,24 +26,24 @@ impl<'ctx> ScopeDecl<'ctx> {
         !self.is_fn()
     }
 
-    pub fn get_fn_decl(&self) -> &FunctionDecl {
+    pub fn get_fn(&self) -> (&Kind, &PointerValue<'ctx>) {
         match self {
-            ScopeDecl::Function(v) => v,
-            ScopeDecl::Variable(_) => panic!("Error"),
+            ScopeType::Function { return_kind, ptr } => (return_kind, ptr),
+            ScopeType::Variable { .. } => panic!("Error"),
         }
     }
 
-    pub fn get_var_decl(&self) -> &VariableDecl<'ctx> {
+    pub fn get_var(&self) -> (&Kind, &PointerValue<'ctx>) {
         match self {
-            ScopeDecl::Function(_) => panic!("Error"),
-            ScopeDecl::Variable(v) => v,
+            ScopeType::Function { .. } => panic!("Error"),
+            ScopeType::Variable { kind, ptr } => (kind, ptr),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Scope<'ctx> {
-    _map: HashMap<String, ScopeDecl<'ctx>>,
+    _map: HashMap<String, ScopeType<'ctx>>,
 }
 
 impl<'ctx> Scope<'ctx> {
@@ -72,41 +53,13 @@ impl<'ctx> Scope<'ctx> {
         }
     }
 
-    // 返回变量或方法声明
+    // 根据名称返回 scope 类型
     #[inline]
-    pub fn get(&self, name: &str) -> Option<&ScopeDecl> {
+    pub fn get(&self, name: &str) -> Option<&ScopeType<'ctx>> {
         self._map.get(name)
     }
 
-    // 返回变量名的值
-    #[inline]
-    pub fn get_var(&self, name: &str) -> Option<&VariableDecl<'ctx>> {
-        match self._map.get(name) {
-            Some(v) => {
-                if v.is_var() {
-                    return Some(v.get_var_decl());
-                }
-            }
-            None => {}
-        };
-        None
-    }
-
-    // 返回变量名的值
-    #[inline]
-    pub fn get_fn(&self, name: &str) -> Option<&FunctionDecl> {
-        match self._map.get(name) {
-            Some(v) => {
-                if v.is_fn() {
-                    return Some(v.get_fn_decl());
-                }
-            }
-            None => {}
-        };
-        None
-    }
-
-    // 是否存在某个变量或方法声明
+    // 是否存在某个 scope 名
     #[inline]
     pub fn has(&self, name: &str) -> bool {
         match self.get(name) {
@@ -115,25 +68,13 @@ impl<'ctx> Scope<'ctx> {
         }
     }
 
-    // 新增一个变量
-    pub fn add_var(&mut self, name: &str, decl: VariableDecl<'ctx>) {
-        self._map
-            .insert(name.to_string(), ScopeDecl::Variable(decl));
+    // 新增一个 scope 命名空间
+    pub fn add(&mut self, name: &str, scope_type: ScopeType<'ctx>) {
+        self._map.insert(name.to_string(), scope_type);
     }
 
-    // 新增一个方法声明
-    pub fn add_fn(&mut self, name: &str, decl: FunctionDecl) {
-        self._map
-            .insert(name.to_string(), ScopeDecl::Function(decl));
-    }
-
-    // 移出一个变量
-    pub fn remove_var(&mut self, name: &str) {
-        self._map.remove(name);
-    }
-
-    // 移出一个方法声明
-    pub fn remove_fn(&mut self, name: &str) {
+    // 移出一个 scope 命名空间
+    pub fn remove(&mut self, name: &str) {
         self._map.remove(name);
     }
 
@@ -169,27 +110,18 @@ impl<'ctx> BlockScope<'ctx> {
         self._scopes.last_mut()
     }
 
-    // 将一个变量放置到当前块作用域中
-    pub fn put_variable(&mut self, name: &str, decl: VariableDecl<'ctx>) {
+    // 将一个变量或函数放置到当前块作用域中
+    pub fn put_variable(&mut self, name: &str, scope_type: ScopeType<'ctx>) {
         let mut scope = self.current().unwrap();
-        scope.add_var(name, decl);
-    }
-
-    // 将一个函数声明放置到当前块作用域中
-    pub fn put_fn(&mut self, name: &str, decl: FunctionDecl) {
-        let mut scope = self.current().unwrap();
-        scope.add_fn(name, decl);
+        scope.add(name, scope_type);
     }
 
     // 作用域范围内搜索变量
-    pub fn search_variable(&self, name: &str) -> Option<&ScopeDecl> {
-        let mut i = self._scopes.len() - 1;
-        while i >= 0 {
-            let scope = &self._scopes[i];
+    pub fn search_variable(&self, name: &str) -> Option<&ScopeType<'ctx>> {
+        for scope in self._scopes.iter().rev() {
             if scope.has(name) {
                 return scope.get(name);
             }
-            i -= 1;
         }
         None
     }

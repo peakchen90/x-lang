@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::ops::Deref;
-
 // 关键字
 const KEYWORDS: [&str; 3] = ["fn", "var", "return"];
 
@@ -26,13 +23,13 @@ pub enum KindName {
 
 impl KindName {
     // 通过字符串创建 KindName，无效类型将会抛错
-    pub fn get(kind: &str) -> Self {
+    pub fn get(kind: &str, allow_void: bool) -> Self {
         if kind == "num" {
             KindName::Number
         } else if kind == "void" {
-            // if !allow_void {
-            //     panic!("Invalid kind: {}", kind);
-            // }
+            if !allow_void {
+                panic!("Unexpected kind: {}", kind);
+            }
             KindName::Void
         } else {
             panic!("Invalid kind: {}", kind)
@@ -58,7 +55,7 @@ pub enum Kind {
 impl Kind {
     // 类型是否是精确的
     pub fn is_exact(&self) -> bool {
-        if let Kind::Some(v) = self {
+        if let Kind::Some(_) = self {
             true
         } else {
             false

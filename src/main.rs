@@ -1,6 +1,7 @@
 use std::fs;
 use std::process::Command;
 use x_lang_ast::state::Parser;
+use x_lang_codegen::compiler::Compiler;
 
 fn ast_test() {
     let str = fs::read_to_string("test.x").unwrap();
@@ -11,7 +12,10 @@ fn ast_test() {
     let format_json_str =
         tiny_json::stringify(&tiny_json::parse(&ast_json_str), 2);
     fs::write(".ast.json", format_json_str).unwrap();
-    println!("Success: write ast at: .ast.json")
+    println!("Success: write ast at: .ast.json");
+
+    Compiler::compile(&node);
+
 }
 
 fn main() {
