@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
             TokenType::Keyword => {
                 let value = &self.current_token.value;
                 if value == "fn" {
-                    if self.current_block_scope > 0 {
+                    if self.current_block_level > 0 {
                         panic!("The function can only be defined at the root")
                     }
                     omit_tailing_semi = true;
@@ -50,6 +50,7 @@ impl<'a> Parser<'a> {
 
     // 解析函数定义语句
     pub fn parse_function_declaration(&mut self) -> Node {
+        self.allow_return = true;
         self.next_token();
 
         // id
@@ -91,6 +92,7 @@ impl<'a> Parser<'a> {
 
         // body
         let body = Box::new(self.parse_block_statement());
+        self.allow_return = false;
 
         Node::FunctionDeclaration {
             id,
@@ -103,7 +105,7 @@ impl<'a> Parser<'a> {
     // 解析块级语句
     pub fn parse_block_statement(&mut self) -> Node {
         // 块级作用域层级 +1
-        self.current_block_scope += 1;
+        self.current_block_level += 1;
 
         let mut body = vec![];
         self.consume_or_panic(TokenType::BraceL);
@@ -113,7 +115,7 @@ impl<'a> Parser<'a> {
         self.consume_or_panic(TokenType::BraceR);
 
         // 块级作用域层级 -1
-        self.current_block_scope -= 1;
+        self.current_block_level -= 1;
 
         Node::BlockStatement { body }
     }
@@ -150,6 +152,9 @@ impl<'a> Parser<'a> {
 
     // 解析 return 语句
     pub fn parse_return_statement(&mut self) -> Node {
+        if !self.allow_return {
+            panic!("Return can only be use in functions")
+        }
         self.next_token();
         let argument = Box::new(self.parse_expression());
         Node::ReturnStatement { argument }

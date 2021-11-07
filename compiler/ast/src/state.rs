@@ -10,7 +10,8 @@ pub struct Parser<'a> {
     pub current_char: char,         // 当前字符
     pub current_token: Token,       // 当前 token
     pub allow_expr: bool,           // 当前上下文是否允许表达式
-    pub current_block_scope: usize, // 当前进入到第几层块级作用域
+    pub allow_return: bool, // 当前上下文是否允许 return 语句
+    pub current_block_level: usize, // 当前进入到第几层块级作用域
     pub node: Option<Node>,         // 解析的 ast
 }
 
@@ -28,7 +29,8 @@ impl<'a> Parser<'a> {
                 precedence: -1,
             },
             allow_expr: true,
-            current_block_scope: 0,
+            allow_return: false,
+            current_block_level: 0,
             node: None,
         };
         parser.node = Some(parser.parse());

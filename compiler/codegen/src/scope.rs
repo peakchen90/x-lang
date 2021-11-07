@@ -118,6 +118,16 @@ impl<'ctx> BlockScope<'ctx> {
         self._scopes.last_mut()
     }
 
+    // 获取顶层的块级作用域
+    pub fn root(&mut self) -> Option<&mut Scope<'ctx>> {
+        self._scopes.first_mut()
+    }
+
+    // 当前是否是根作用域
+    pub fn is_root(&self) -> bool {
+        self._scopes.len() == 1
+    }
+
     // 将一个变量或函数放置到当前块作用域中
     pub fn put_variable(&mut self, name: &str, scope_type: ScopeType<'ctx>) {
         let mut scope = self.current().unwrap();

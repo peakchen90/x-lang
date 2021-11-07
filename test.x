@@ -1,9 +1,10 @@
-// 注释
-fn add(a: num, b: num) {
-    return a + b;
+
+fn get() -> num {
+    return 100 / 50;
 }
 
-var n: num = 3;
-// var result = add(n, 4.2);
-
-// print(result); // 调用系统内置方法
+// 注释
+fn add(a: num, b: num) {
+    var c = get() * 2;
+    return a + b + c ;
+}

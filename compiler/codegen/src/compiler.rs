@@ -1,16 +1,17 @@
 use crate::helper::never;
 use crate::scope::{BlockScope, ScopeType};
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
-use inkwell::execution_engine::ExecutionEngine;
+use inkwell::execution_engine::{ExecutionEngine, JitFunction};
 use inkwell::module::Module;
 use inkwell::types::{BasicMetadataTypeEnum, FloatType, FunctionType};
 use inkwell::values::{
     BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallableValue,
     FunctionValue, PointerValue,
 };
+use inkwell::OptimizationLevel;
 use std::ops::Deref;
-use inkwell::basic_block::BasicBlock;
 use x_lang_ast::shared::{Kind, KindName, Node};
 use x_lang_ast::visitor::Visitor;
 
@@ -20,7 +21,9 @@ pub struct Compiler<'a, 'ctx> {
     pub module: &'a Module<'ctx>,
     pub scope: &'a mut BlockScope<'ctx>,
     // pub execution_engine: ExecutionEngine<'ctx>,
+    bootstrap_fn: Option<FunctionValue<'ctx>>,
 }
+type ROOTFunc = unsafe extern "C" fn(f64, f64) -> f64;
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub fn compile(ast: &Node) {
@@ -34,6 +37,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             module,
             builder,
             scope,
+            bootstrap_fn: None,
         };
 
         compiler.compile_program(ast);
@@ -42,6 +46,26 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // 控制台打印 IR 码
         compiler.module.print_to_stderr();
+
+        println!(
+            " ========================= Run ============================\n"
+        );
+
+        let execution_engine = module
+            .create_jit_execution_engine(OptimizationLevel::None)
+            .unwrap();
+
+        unsafe {
+            execution_engine
+                .run_function(compiler.bootstrap_fn.unwrap(), &vec![]);
+        }
+
+        unsafe {
+            let root: Option<JitFunction<ROOTFunc>> =
+                execution_engine.get_function("add").ok();
+            let root = root.ok_or("Error").unwrap();
+            println!("{}", root.call(1.0, 2.0))
+        }
     }
 
     fn put_variable(
@@ -51,14 +75,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         value: Option<BasicValueEnum<'ctx>>,
         is_arg: bool, // 是否是函数参数
     ) {
-        let mut current = self.scope.current().unwrap();
+        let current = self.scope.current().unwrap();
         if current.has(name) {
-            panic!("Scope name `{}` is exist", name);
+            panic!("Variable `{}` is exist", name);
         }
 
         // 内存中的描述名称
         let mem_name = match is_arg {
-            true => format!("argument.{}", name),
+            true => format!("ARGUMENT.{}", name),
             false => name.to_string(),
         };
         let ptr = match kind.read_kind_name().unwrap() {
@@ -82,19 +106,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         name: &str,
         fn_value: &FunctionValue<'ctx>,
         arg_kind_names: Vec<KindName>,
-        return_kind: Kind,
+        return_kind: &Kind,
     ) {
-        let mut current = self.scope.current().unwrap();
-        if current.has(name) {
-            panic!("Scope name `{}` is exist", name);
+        let mut root = self.scope.root().unwrap();
+        if root.has(name) {
+            panic!("Function `{}` is exist", name);
         }
 
         let scope_type = ScopeType::Function {
             fn_value: *fn_value,
-            return_kind,
+            return_kind: *return_kind,
             arg_kind_names,
         };
-        self.scope.put_variable(name, scope_type);
+        root.add(name, scope_type);
     }
 
     fn push_block_scope(&mut self, basic_block: &BasicBlock<'ctx>) {
@@ -109,7 +133,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    // 推断表达式的返回类型名称
+    // 推断表达式的返回类型
     fn infer_expression_kind(&self, expr: &Node) -> Kind {
         let mut ret_kind = Kind::None;
 
@@ -166,16 +190,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     fn compile_program(&mut self, node: &Node) {
         match node {
             Node::Program { body } => {
-                self.compile_function(
-                    "entry",
+                self.bootstrap_fn = Some(self.compile_function(
+                    "BOOTSTRAP",
                     &vec![],
                     &vec![],
                     body,
                     &Kind::Some(KindName::Void),
-                );
+                    true,
+                ));
             }
-            _ => {}
-        }
+            _ => never(),
+        };
     }
 
     fn compile_statement(&mut self, node: &Node) {
@@ -209,6 +234,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     arguments,
                     body,
                     return_kind,
+                    false,
                 );
             }
             Node::VariableDeclaration { id, init } => {
@@ -226,19 +252,21 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     id,
                     *kind,
                     Some(init_value.as_basic_value_enum()),
-                    false
+                    false,
                 );
             }
             Node::BlockStatement { body } => {
                 self.compile_block_statement(body, false);
             }
             Node::ReturnStatement { argument } => {
-                self.compile_expression(argument.deref());
+                self.builder.build_return(Some(
+                    &self.compile_expression(argument.deref()),
+                ));
             }
             Node::ExpressionStatement { expression } => {
                 self.compile_expression(expression.deref());
             }
-            _ => {}
+            _ => never(),
         }
     }
 
@@ -250,7 +278,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         arguments: &Vec<Box<Node>>,
         body: &Vec<Box<Node>>,
         return_kind: &Kind,
-    ) {
+        is_only_block: bool,
+    ) -> FunctionValue<'ctx> {
         let fn_type = match return_kind.read_kind_name().unwrap() {
             KindName::Number => {
                 self.context.f64_type().fn_type(args.as_slice(), false)
@@ -261,10 +290,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         };
 
         let fn_value = self.module.add_function(name, fn_type, None);
+        let mut arg_kind_names = vec![];
 
         // 为每个参数设置名称
         for (i, arg) in fn_value.get_param_iter().enumerate() {
             let (arg_name, kind) = arguments[i].deref().read_identifier();
+            arg_kind_names.push(*kind.read_kind_name().unwrap());
+
             match kind.read_kind_name().unwrap() {
                 KindName::Number => {
                     let fv = arg.into_float_value();
@@ -276,6 +308,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         let block = self.context.append_basic_block(fn_value, "");
         self.push_block_scope(&block); // 作用域入栈
+        if !is_only_block {
+            self.put_function(name, &fn_value, arg_kind_names, &return_kind);
+        }
 
         // 设置形参
         for (i, arg) in fn_value.get_param_iter().enumerate() {
@@ -288,6 +323,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.compile_block_statement(body, true);
 
         self.pop_block_scope();
+
+        fn_value
     }
 
     fn compile_block_statement(
@@ -303,11 +340,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 &vec![],
                 node,
                 &Kind::Some(KindName::Void),
+                true,
             );
         } else {
             for stat in node {
                 self.compile_statement(stat.deref());
             }
+            self.builder.build_return(None);
         }
     }
 
@@ -315,21 +354,49 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         match node {
             Node::CallExpression { callee, arguments } => {
                 let (name, ..) = callee.deref().read_identifier();
-                let fn_value = self.get_declare_fn_val(name);
+                let (fn_value, arg_kind_names, _) = self.get_declare_fn(name);
+
+                // 校验参数
+                if arg_kind_names.len() != arguments.len() {
+                    panic!(
+                        "Call function `{}` can not match arguments type",
+                        name
+                    );
+                }
+
                 let args = arguments.iter();
+                let mut i = 0;
                 let args = args.map(|arg| {
-                    let value = self.compile_expression(arg.deref());
+                    let arg = arg.deref();
+                    let infer_arg_kind = self.infer_expression_kind(arg);
+
+                    // 校验参数
+                    if !match infer_arg_kind {
+                        Kind::Some(v) => v == arg_kind_names[i],
+                        _ => false,
+                    } {
+                        panic!(
+                            "Call function `{}` can not match arguments type",
+                            name
+                        );
+                    }
+
+                    let value = self.compile_expression(arg);
+                    i += 1;
                     BasicMetadataValueEnum::from(value)
                 });
-                // let args = args.into_iter();
                 let args = args.collect::<Vec<BasicMetadataValueEnum>>();
                 let args = args.as_slice();
 
-                self.builder
-                    .build_call(*fn_value, args, &format!("call_{}", name))
+                match self
+                    .builder
+                    .build_call(*fn_value, args, &format!("CALL.{}", name))
                     .try_as_basic_value()
                     .left()
-                    .unwrap()
+                {
+                    Some(v) => v,
+                    None => self.build_number_value(0.0).as_basic_value_enum(), // TODO: 调用失败返回 0 ??
+                }
             }
             Node::BinaryExpression {
                 left,
@@ -379,7 +446,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .build_float_add(
                     left.into_float_value(),
                     right.into_float_value(),
-                    "add",
+                    "ADD",
                 )
                 .as_basic_value_enum()
         } else if operator == "-" {
@@ -387,7 +454,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .build_float_sub(
                     left.into_float_value(),
                     right.into_float_value(),
-                    "sub",
+                    "SUB",
                 )
                 .as_basic_value_enum()
         } else if operator == "*" {
@@ -395,7 +462,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .build_float_mul(
                     left.into_float_value(),
                     right.into_float_value(),
-                    "mul",
+                    "MUL",
                 )
                 .as_basic_value_enum()
         } else if operator == "/" {
@@ -403,7 +470,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 .build_float_div(
                     left.into_float_value(),
                     right.into_float_value(),
-                    "div",
+                    "DIV",
                 )
                 .as_basic_value_enum()
         } else {
