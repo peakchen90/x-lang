@@ -1,4 +1,6 @@
-use crate::build_in::{system_print_bool, system_print_newline, system_print_num, system_print_str};
+use crate::build_in::{
+    system_print_bool, system_print_newline, system_print_num, system_print_str,
+};
 use crate::compiler::Compiler;
 use crate::scope::ScopeType;
 use inkwell::comdat::ComdatSelectionKind;
@@ -94,7 +96,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         name: &str,
     ) -> (&Kind, &Option<PointerValue<'ctx>>) {
         self.scope
-            .search_by_name(name)
+            .search_by_name(name, false)
             .expect(&format!("Variable `{}` is not found", name))
             .get_var()
     }
@@ -112,7 +114,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         name: &str,
     ) -> (&FunctionValue<'ctx>, &Vec<KindName>, &Kind) {
         self.scope
-            .search_by_name(name)
+            .search_by_name(name, false)
             .expect(&format!("Function `{}` is not declare", name))
             .get_fn()
     }
@@ -124,8 +126,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     // built-in
     pub fn inject_build_in(&mut self) {
-        self.scope.push_without_block();
-
         unsafe {
             // print string
             // self.bind_system_print_fn(
@@ -171,7 +171,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         );
         self.execution_engine
             .add_global_mapping(&print_fn_value, address);
+
+        // 保存信息
         self.print_fns.insert(type_name, print_fn_value);
+        self.scope.external.add(
+            "print",
+            ScopeType::Function {
+                fn_value: print_fn_value,
+                return_kind: Kind::create("void"),
+                arg_kind_names: vec![],
+            },
+        )
     }
 
     pub fn build_call_system_print(

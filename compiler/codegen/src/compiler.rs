@@ -99,7 +99,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     ) {
         let current = self.scope.current().unwrap();
         if current.has(name) {
-            panic!("Variable `{}` is exist", name);
+            panic!("Scope name `{}` is exist", name);
         }
 
         // 内存中的描述名称
@@ -143,7 +143,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     ) {
         let mut root = self.scope.root().unwrap();
         if root.has(name) {
-            panic!("Function `{}` is exist", name);
+            panic!("Scope name `{}` is exist", name);
         }
 
         let scope_type = ScopeType::Function {
@@ -175,7 +175,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         Visitor::walk(expr, &mut |node, mut visitor| match node {
             Node::CallExpression { callee, .. } => {
                 let (name, ..) = callee.deref().read_identifier();
-                match self.scope.search_by_name(name) {
+                match self.scope.search_by_name(name, false) {
                     Some(v) => {
                         if v.is_fn() {
                             let (.., return_kind) = v.get_fn();
@@ -183,11 +183,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             visitor.stop();
                         }
                     }
-                    _ => {
-                        if name != "print" {
-                            panic!("Function `{}` is not found", name)
-                        }
-                    }
+                    _ => panic!("Function `{}` is not found", name),
                 }
             }
             Node::BinaryExpression { left, .. } => {
@@ -203,7 +199,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     ret_kind = *kind;
                     visitor.stop();
                 }
-                Kind::Infer => match self.scope.search_by_name(name) {
+                Kind::Infer => match self.scope.search_by_name(name, false) {
                     Some(v) => {
                         if v.is_var() {
                             let (kind, ..) = v.get_var();

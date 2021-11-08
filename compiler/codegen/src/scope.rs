@@ -94,12 +94,16 @@ impl<'ctx> Scope<'ctx> {
 
 #[derive(Debug)]
 pub struct BlockScope<'ctx> {
+    pub external: Scope<'ctx>,
     _scopes: Vec<Scope<'ctx>>,
 }
 
 impl<'ctx> BlockScope<'ctx> {
     pub fn new() -> Self {
-        BlockScope { _scopes: vec![] }
+        BlockScope {
+            external: Scope::new(None),
+            _scopes: vec![],
+        }
     }
 
     // 将一个新的块级作用域压入栈中
@@ -139,11 +143,19 @@ impl<'ctx> BlockScope<'ctx> {
     }
 
     // 作用域范围内搜索变量或方法声明
-    pub fn search_by_name(&self, name: &str) -> Option<&ScopeType<'ctx>> {
+    pub fn search_by_name(
+        &self,
+        name: &str,
+        only_user: bool,
+    ) -> Option<&ScopeType<'ctx>> {
         for scope in self._scopes.iter().rev() {
             if scope.has(name) {
                 return scope.get(name);
             }
+        }
+        // 搜索 external 作用域
+        if !only_user && self.external.has(name) {
+            return self.external.get(name);
         }
         None
     }

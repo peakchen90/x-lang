@@ -59,7 +59,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // print 方法调用特殊处理
         if name == "print" {
-            match self.scope.search_by_name(name) {
+            match self.scope.search_by_name(name, true) {
                 Some(_) => {} // 用户已定义，覆盖系统内置方法
                 None => return self.build_call_system_print(arguments),
             }
