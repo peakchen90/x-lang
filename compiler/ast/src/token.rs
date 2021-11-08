@@ -124,9 +124,9 @@ impl<'a> Parser<'a> {
         let mut value = String::new();
         while self.check_valid_index()
             && match self.current_char {
-                'A'..='Z' | 'a'..='z' | '0'..='9' => true,
-                _ => false,
-            }
+            'A'..='Z' | 'a'..='z' | '0'..='9' => true,
+            _ => false,
+        }
         {
             value.push(self.current_char);
             self.move_index(1);
@@ -134,6 +134,9 @@ impl<'a> Parser<'a> {
 
         // keyword
         if is_keyword_str(&value) {
+            if value == "true" || value == "false" {
+                return Token::new(self, TokenType::Boolean, &value);
+            }
             return Token::new(self, TokenType::Keyword, &value);
         }
 
@@ -150,9 +153,9 @@ impl<'a> Parser<'a> {
 
         while self.check_valid_index()
             && match self.current_char {
-                '0'..='9' | '.' => true,
-                _ => false,
-            }
+            '0'..='9' | '.' => true,
+            _ => false,
+        }
         {
             value.push(self.current_char);
             self.move_index(1);

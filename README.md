@@ -18,7 +18,7 @@ print(result);
 ```
 
 ## 怎样跑起来
-对于 **MacOS (x86-64)** 用户，可以直接下载编译好的二进制文件执行（[下载链接](https://github.com/peakchen90/x-lang/releases/tag/v0.0.1) ,下载 `x-lang` 二进制文件）。
+对于 **MacOS (x86-64)** 用户，可以直接下载编译好的二进制文件执行 ([下载链接](https://github.com/peakchen90/x-lang/releases/tag/v0.0.1))
 
 对于其他系统用户，需要将本项目 clone 到本地编译：
 - 需要依赖 LLVM 环境（[见说明](./compiler/codegen/README.md)）
@@ -51,6 +51,7 @@ print(result);
 - [用 LLVM 开发新语言](https://llvm-tutorial-cn.readthedocs.io/en/latest/index.html) (已过时)
 - [LLVM 中文文档](https://llvm.liuxfe.com/)
 - [LLVM IR入门指南](https://github.com/Evian-Zhang/llvm-ir-tutorial)
+- [rust-cross](https://github.com/japaric/rust-cross)
 
 ## 一些资源
 

@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
             self.consume_or_panic(TokenType::Colon);
             self.expect(TokenType::Identifier);
             let kind_str = self.current_token.value.to_string();
-            let kind = Kind::Some(KindName::get(&kind_str, false));
+            let kind = KindName::from(&kind_str, false).into();
 
             arguments.push(Box::new(Node::Identifier { name, kind }));
             self.next_token();
@@ -83,10 +83,10 @@ impl<'a> Parser<'a> {
         self.consume_or_panic(TokenType::ParenR);
 
         // maybe return kind
-        let mut return_kind = Kind::Some(KindName::Void);
+        let mut return_kind = KindName::Void.into();
         if self.consume(TokenType::ReturnSym) {
             let kind_str = self.current_token.value.to_string();
-            return_kind = Kind::Some(KindName::get(&kind_str, true));
+            return_kind = KindName::from(&kind_str, true).into();
             self.next_token();
         }
 
@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
         if self.consume(TokenType::Colon) {
             self.expect(TokenType::Identifier);
             let kind_str = self.current_token.value.to_string();
-            kind = Kind::Some(KindName::get(&kind_str, true));
+            kind = KindName::from(&kind_str, true).into();
             self.next_token();
         }
 

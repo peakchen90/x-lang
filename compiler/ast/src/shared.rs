@@ -1,5 +1,5 @@
 // 关键字
-const KEYWORDS: [&str; 3] = ["fn", "var", "return"];
+const KEYWORDS: [&str; 5] = ["fn", "var", "return", "true", "false"];
 
 fn array_index_of_str(arr: &[&str], value: &str) -> isize {
     for (i, v) in arr.iter().enumerate() {
@@ -18,21 +18,29 @@ pub fn is_keyword_str(str: &str) -> bool {
 #[derive(Debug, PartialEq, Eq, Serialize, Copy, Clone)]
 pub enum KindName {
     Number,
+    Boolean,
     Void,
+}
+
+impl Into<Kind> for KindName {
+    fn into(self) -> Kind {
+        Kind::Some(self)
+    }
 }
 
 impl KindName {
     // 通过字符串创建 KindName，无效类型将会抛错
-    pub fn get(kind: &str, allow_void: bool) -> Self {
-        if kind == "num" {
-            KindName::Number
-        } else if kind == "void" {
-            if !allow_void {
-                panic!("Unexpected kind: {}", kind);
-            }
-            KindName::Void
-        } else {
-            panic!("Invalid kind: {}", kind)
+    pub fn from(kind_str: &str, allow_void: bool) -> Self {
+        match kind_str.as_bytes() {
+            b"num" => KindName::Number,
+            b"bool" => KindName::Boolean,
+            b"void" => {
+                if !allow_void {
+                    panic!("Unexpected kind: {}", kind_str);
+                }
+                KindName::Void
+            },
+            _ => panic!("Error"),
         }
     }
 
@@ -40,6 +48,7 @@ impl KindName {
     pub fn to_string(&self) -> String {
         match self {
             KindName::Number => "num".to_string(),
+            KindName::Boolean => "bool".to_string(),
             KindName::Void => "void".to_string(),
         }
     }
@@ -53,6 +62,10 @@ pub enum Kind {
 }
 
 impl Kind {
+    pub fn create(kind_str: &str) -> Self {
+        KindName::from(kind_str, true).into()
+    }
+
     // 类型是否是精确的
     pub fn is_exact(&self) -> bool {
         if let Kind::Some(_) = self {
@@ -86,6 +99,7 @@ pub enum TokenType {
     Keyword,
     Identifier,
     Number,
+    Boolean,
     EOF,
     Assign,    // =
     Plus,      // +
@@ -148,12 +162,15 @@ pub enum Node {
         name: String,
         kind: Kind,
     },
-    // StringLiteral {
-    //     value: String
-    // },
     NumberLiteral {
         value: f64,
     },
+    BooleanLiteral {
+        value: bool,
+    },
+    // StringLiteral {
+    //     value: String
+    // },
 }
 
 impl Node {
@@ -171,6 +188,7 @@ impl Node {
             Node::AssignmentExpression { .. } => "AssignmentExpression",
             Node::Identifier { .. } => "Identifier",
             Node::NumberLiteral { .. } => "NumberLiteral",
+            Node::BooleanLiteral { .. } => "BooleanLiteral",
         };
         str.to_string()
     }
@@ -179,6 +197,14 @@ impl Node {
     pub fn read_number(&self) -> f64 {
         match self {
             Node::NumberLiteral { value } => *value,
+            _ => panic!("Error"),
+        }
+    }
+
+    // 读取一个布尔节点的值
+    pub fn read_bool(&self) -> bool {
+        match self {
+            Node::BooleanLiteral { value } => *value,
             _ => panic!("Error"),
         }
     }

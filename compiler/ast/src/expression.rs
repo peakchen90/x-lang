@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // 解析一个原子表达式，如: `foo()`, `3.14`, `var1`, `var2 = expr`
+    // 解析一个原子表达式，如: `foo()`, `3.14`, `var1`, `var2 = expr`, `true`
     pub fn parse_atom_expression(&mut self) -> Node {
         let value = self.current_token.value.to_string();
         match self.current_token.token_type {
@@ -97,6 +97,12 @@ impl<'a> Parser<'a> {
                 self.next_token();
                 Node::NumberLiteral {
                     value: value.parse().unwrap(),
+                }
+            }
+            TokenType::Boolean => {
+                self.next_token();
+                Node::BooleanLiteral {
+                    value: value == "true",
                 }
             }
             _ => self.unexpected(),

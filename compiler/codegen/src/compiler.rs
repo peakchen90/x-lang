@@ -15,6 +15,7 @@ use inkwell::values::{
     FunctionValue, PointerValue,
 };
 use inkwell::OptimizationLevel;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::Path;
 use x_lang_ast::shared::{Kind, KindName, Node};
@@ -26,6 +27,7 @@ pub struct Compiler<'a, 'ctx> {
     pub module: &'a Module<'ctx>,
     pub scope: &'a mut BlockScope<'ctx>,
     pub execution_engine: &'a ExecutionEngine<'ctx>,
+    pub print_fns: HashMap<&'a str, FunctionValue<'ctx>>,
     bootstrap_fn: Option<FunctionValue<'ctx>>,
 }
 
@@ -46,6 +48,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             scope,
             execution_engine,
             bootstrap_fn: None,
+            print_fns: HashMap::new(),
         };
 
         // 开始编译
@@ -87,7 +90,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    fn put_variable(
+    pub fn put_variable(
         &mut self,
         name: &str,
         kind: Kind,
@@ -113,6 +116,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
                 Some(ptr)
             }
+            KindName::Boolean => {
+                let ty = self.build_bool_type();
+                let ptr = self.builder.build_alloca(ty, &mem_name);
+                if let Some(v) = value {
+                    self.builder.build_store(ptr, v.into_int_value());
+                }
+                Some(ptr)
+            }
             KindName::Void => None,
         };
 
@@ -120,7 +131,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         self.scope.put_variable(name, scope_type);
     }
 
-    fn put_function(
+    pub fn put_function(
         &mut self,
         name: &str,
         fn_value: &FunctionValue<'ctx>,
@@ -140,12 +151,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         root.add(name, scope_type);
     }
 
-    fn push_block_scope(&mut self, basic_block: &BasicBlock<'ctx>) {
+    pub fn push_block_scope(&mut self, basic_block: &BasicBlock<'ctx>) {
         self.scope.push(basic_block);
         self.builder.position_at_end(*basic_block);
     }
 
-    fn pop_block_scope(&mut self) {
+    pub fn pop_block_scope(&mut self) {
         self.scope.pop();
         if let Some(v) = self.scope.current() {
             if let Some(b) = v.basic_block {
@@ -155,13 +166,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     // 推断表达式的返回类型
-    fn infer_expression_kind(&self, expr: &Node) -> Kind {
+    pub fn infer_expression_kind(&self, expr: &Node) -> Kind {
         let mut ret_kind = Kind::None;
 
         Visitor::walk(expr, &mut |node, mut visitor| match node {
             Node::CallExpression { callee, .. } => {
-                let (id, ..) = callee.deref().read_identifier();
-                match self.scope.search_by_name(id) {
+                let (name, ..) = callee.deref().read_identifier();
+                match self.scope.search_by_name(name) {
                     Some(v) => {
                         if v.is_fn() {
                             let (.., return_kind) = v.get_fn();
@@ -169,7 +180,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                             visitor.stop();
                         }
                     }
-                    _ => {}
+                    _ => {
+                        if name != "print" {
+                            panic!("Function `{}` is not found", name)
+                        }
+                    }
                 }
             }
             Node::BinaryExpression { left, .. } => {
@@ -200,15 +215,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 _ => {}
             },
             Node::NumberLiteral { .. } => {
-                ret_kind = Kind::Some(KindName::Number);
+                ret_kind = Kind::create("num");
                 visitor.stop();
             }
-            _ => {}
+            Node::BooleanLiteral { .. } => {
+                ret_kind = Kind::create("bool");
+                visitor.stop();
+            }
+            _ => never(),
         });
         ret_kind
     }
 
-    fn compile_program(&mut self, node: &Node) {
+    pub fn compile_program(&mut self, node: &Node) {
         self.inject_build_in();
 
         match node {
@@ -218,7 +237,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     &vec![],
                     &vec![],
                     body,
-                    &Kind::Some(KindName::Void),
+                    &Kind::create("void"),
                     true,
                 ));
             }
@@ -226,7 +245,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         };
     }
 
-    fn compile_statement(&mut self, node: &Node) {
+    pub fn compile_statement(&mut self, node: &Node) {
         match node {
             Node::FunctionDeclaration {
                 id,
@@ -240,10 +259,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     let (.., kind) = arg.deref().read_identifier();
                     let kind_name = kind.read_kind_name().unwrap();
                     (match kind_name {
-                        KindName::Number => self.build_number_type(),
+                        KindName::Number => self.build_number_type().into(),
+                        KindName::Boolean => self.build_bool_type().into(),
                         KindName::Void => never(),
                     })
-                    .into()
                 });
                 let args = args.collect();
 
@@ -294,7 +313,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     /// 编译函数声明
-    fn compile_function(
+    pub fn compile_function(
         &mut self,
         name: &str,
         args: &Vec<BasicMetadataTypeEnum<'ctx>>,
@@ -303,54 +322,46 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         return_kind: &Kind,
         is_only_block: bool,
     ) -> FunctionValue<'ctx> {
-        let fn_type = match return_kind.read_kind_name().unwrap() {
-            KindName::Number => {
-                self.context.f64_type().fn_type(args.as_slice(), false)
-            }
-            KindName::Void => {
-                self.context.void_type().fn_type(args.as_slice(), false)
-            }
-        };
+        let fn_value = self.build_fn_value(name, return_kind, args.as_slice());
+        let block = self.context.append_basic_block(fn_value, "");
+        self.push_block_scope(&block); // 作用域入栈
 
-        let fn_value = self.module.add_function(name, fn_type, None);
+        // 设置形参
         let mut arg_kind_names = vec![];
-
-        // 为每个参数设置名称
         for (i, arg) in fn_value.get_param_iter().enumerate() {
             let (arg_name, kind) = arguments[i].deref().read_identifier();
             arg_kind_names.push(*kind.read_kind_name().unwrap());
+            let arg_value = fn_value.get_nth_param(i as u32).unwrap();
+            self.put_variable(arg_name, *kind, Some(arg_value), true);
 
+            // 为每个参数设置名称
             match kind.read_kind_name().unwrap() {
                 KindName::Number => {
                     let fv = arg.into_float_value();
                     fv.set_name(arg_name);
                 }
-                KindName::Void => {}
+                KindName::Boolean => {
+                    let fv = arg.into_int_value();
+                    fv.set_name(arg_name);
+                }
+                KindName::Void => never(),
             }
         }
-
-        let block = self.context.append_basic_block(fn_value, "");
-        self.push_block_scope(&block); // 作用域入栈
         if !is_only_block {
             self.put_function(name, &fn_value, arg_kind_names, &return_kind);
         }
 
-        // 设置形参
-        for (i, arg) in fn_value.get_param_iter().enumerate() {
-            let (arg_name, kind) = arguments[i].deref().read_identifier();
-            let arg_value = fn_value.get_nth_param(i as u32).unwrap();
-            self.put_variable(arg_name, *kind, Some(arg_value), true);
-        }
-
         // compile function body
         self.compile_block_statement(body, true);
+        // 函数体最后都返回 void 作为返回的默认值
+        self.builder.build_return(None);
 
         self.pop_block_scope();
 
         fn_value
     }
 
-    fn compile_block_statement(
+    pub fn compile_block_statement(
         &mut self,
         node: &Vec<Box<Node>>,
         is_fn_block: bool,
@@ -362,63 +373,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 &vec![],
                 &vec![],
                 node,
-                &Kind::Some(KindName::Void),
+                &Kind::create("void"),
                 true,
             );
         } else {
             for stat in node {
                 self.compile_statement(stat.deref());
             }
-            self.builder.build_return(None);
         }
     }
 
-    fn compile_expression(&self, node: &Node) -> BasicValueEnum<'ctx> {
+    pub fn compile_expression(&self, node: &Node) -> BasicValueEnum<'ctx> {
         match node {
             Node::CallExpression { callee, arguments } => {
-                let (name, ..) = callee.deref().read_identifier();
-                let (fn_value, arg_kind_names, _) = self.get_declare_fn(name);
-
-                // 校验参数
-                if arg_kind_names.len() != arguments.len() {
-                    panic!(
-                        "Call function `{}` can not match arguments type",
-                        name
-                    );
-                }
-
-                let args = arguments.iter();
-                let mut i = 0;
-                let args = args.map(|arg| {
-                    let arg = arg.deref();
-                    let infer_arg_kind = self.infer_expression_kind(arg);
-                    let value = self.compile_expression(arg);
-
-                    // 校验参数
-                    if !match infer_arg_kind {
-                        Kind::Some(v) => v == arg_kind_names[i],
-                        _ => false,
-                    } {
-                        panic!(
-                            "Call function `{}` can not match arguments type",
-                            name
-                        );
-                    }
-                    i += 1;
-                    BasicMetadataValueEnum::from(value)
-                });
-                let args = args.collect::<Vec<BasicMetadataValueEnum>>();
-                let args = args.as_slice();
-
-                match self
-                    .builder
-                    .build_call(*fn_value, args, &format!("CALL.{}", name))
-                    .try_as_basic_value()
-                    .left()
-                {
-                    Some(v) => v,
-                    None => self.build_number_value(0.0).as_basic_value_enum(), // TODO: 调用失败返回 0 ??
-                }
+                self.compile_call_expression(callee.deref(), arguments)
             }
             Node::BinaryExpression {
                 left,
@@ -453,11 +421,59 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Node::NumberLiteral { value } => {
                 self.build_number_value(*value).as_basic_value_enum()
             }
+            Node::BooleanLiteral { value } => {
+                self.build_bool_value(*value).as_basic_value_enum()
+            }
             _ => never(),
         }
     }
 
-    fn compile_binary_expression(
+    pub fn compile_call_expression(
+        &self,
+        callee: &Node,
+        arguments: &Vec<Box<Node>>,
+    ) -> BasicValueEnum<'ctx> {
+        let (name, ..) = callee.read_identifier();
+
+        // print 方法调用特殊处理
+        if name == "print" {
+            match self.scope.search_by_name(name) {
+                Some(_) => {} // 用户已定义，覆盖系统内置方法
+                None => return self.build_call_system_print(arguments),
+            }
+        }
+
+        let (fn_value, arg_kind_names, _) = self.get_declare_fn(name);
+
+        // 校验参数
+        if arg_kind_names.len() != arguments.len() {
+            panic!("Call function `{}` can not match arguments", name);
+        }
+
+        let args = arguments.iter();
+        let mut i = 0;
+        let args = args.map(|arg| {
+            let arg = arg.deref();
+            let infer_arg_kind = self.infer_expression_kind(arg);
+            let value = self.compile_expression(arg);
+
+            // 校验参数
+            if !match infer_arg_kind {
+                Kind::Some(v) => v == arg_kind_names[i],
+                _ => false,
+            } {
+                panic!("Call function `{}` can not match arguments type", name);
+            }
+            i += 1;
+            BasicMetadataValueEnum::from(value)
+        });
+        let args = args.collect::<Vec<BasicMetadataValueEnum>>();
+        let args = args.as_slice();
+
+        self.build_call_fn(fn_value, args, name)
+    }
+
+    pub fn compile_binary_expression(
         &self,
         left: &BasicValueEnum<'ctx>,
         right: &BasicValueEnum<'ctx>,
