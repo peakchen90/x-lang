@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::time::Instant;
 use x_lang_ast::state::Parser;
-use x_lang_codegen::compiler::Compiler;
+use x_lang_codegen::compile;
 
 fn print_help_info() {
     println!("Usage: x-lang <path/example.x> [--debug]");
@@ -37,5 +37,5 @@ pub fn handle_commander() {
     let parser = Parser::new(&content);
     let node = parser.node.unwrap();
 
-    Compiler::compile(&node, is_debug);
+    compile(&node, is_debug);
 }
