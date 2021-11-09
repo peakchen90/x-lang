@@ -1,5 +1,5 @@
-use std::ops::Deref;
 use crate::node::Node;
+use std::ops::Deref;
 
 pub struct Visitor {
     is_stop: bool,
@@ -64,7 +64,9 @@ impl Visitor {
                 }
             }
             Node::ReturnStatement { argument } => {
-                self.walk_node(argument.deref(), callback);
+                if argument.is_some() {
+                    self.walk_node(argument.as_ref().unwrap().deref(), callback);
+                }
             }
             Node::ExpressionStatement { expression } => {
                 self.walk_node(expression.deref(), callback);

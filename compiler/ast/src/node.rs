@@ -21,7 +21,7 @@ pub enum Node {
         body: Vec<Box<Node>>,
     },
     ReturnStatement {
-        argument: Box<Node>,
+        argument: Option<Box<Node>>,
     },
     ExpressionStatement {
         expression: Box<Node>,

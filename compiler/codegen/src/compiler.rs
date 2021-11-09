@@ -292,10 +292,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 self.compile_block_statement(body);
                 self.pop_block_scope();
             }
-            Node::ReturnStatement { argument } => {
-                self.builder
-                    .build_return(Some(&self.compile_expression(argument.deref())));
-            }
+            Node::ReturnStatement { argument } => match argument {
+                Some(v) => {
+                    self.builder
+                        .build_return(Some(&self.compile_expression(v.deref())));
+                }
+                None => {
+                    self.builder.build_return(None);
+                }
+            },
             Node::ExpressionStatement { expression } => {
                 self.compile_expression(expression.deref());
             }

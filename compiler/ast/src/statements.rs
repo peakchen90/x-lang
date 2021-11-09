@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
                 }
             }
             TokenType::Identifier | TokenType::Number | TokenType::ParenL => {
-                let expression = Box::new(self.parse_expression());
+                let expression = Box::new(self.parse_expression().unwrap());
                 Node::ExpressionStatement { expression }
             }
             TokenType::BraceL => {
@@ -157,7 +157,7 @@ impl<'a> Parser<'a> {
 
         // init
         self.consume_or_panic(TokenType::Assign);
-        let init = Box::new(self.parse_expression());
+        let init = Box::new(self.parse_expression().unwrap());
 
         Node::VariableDeclaration { id, init }
     }
@@ -168,8 +168,15 @@ impl<'a> Parser<'a> {
             panic!("Return can only be use in functions")
         }
         self.next_token();
-        let argument = Box::new(self.parse_expression());
-        Node::ReturnStatement { argument }
+
+        let argument = self.parse_expression();
+        Node::ReturnStatement {
+            argument: match argument {
+                Some(v) =>Some(Box::new(v)),
+                None => None
+            },
+        }
+
     }
 
     // 解析 if 语句
@@ -183,7 +190,7 @@ impl<'a> Parser<'a> {
 
         // condition
         let has_paren = self.consume(TokenType::ParenL);
-        let condition = self.parse_expression();
+        let condition = self.parse_expression().unwrap();
         if has_paren {
             self.consume_or_panic(TokenType::ParenR);
         }
