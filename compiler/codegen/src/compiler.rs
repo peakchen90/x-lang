@@ -23,6 +23,7 @@ pub struct Compiler<'a, 'ctx> {
     pub scope: &'a mut BlockScope<'ctx>,
     pub execution_engine: &'a ExecutionEngine<'ctx>,
     pub print_fns: HashMap<&'a str, FunctionValue<'ctx>>,
+    pub current_fn_value: Option<FunctionValue<'ctx>>,
     bootstrap_fn: Option<FunctionValue<'ctx>>,
 }
 
@@ -43,6 +44,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             scope,
             execution_engine,
             bootstrap_fn: None,
+            current_fn_value: None,
             print_fns: HashMap::new(),
         };
 
@@ -280,15 +282,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 );
             }
             Node::BlockStatement { body } => {
-                let parent = self
-                    .builder
-                    .get_insert_block()
-                    .unwrap()
-                    .get_parent()
-                    .unwrap();
-                let anonymous_block =
-                    self.context.append_basic_block(parent, "anonymous");
-                self.push_block_scope(anonymous_block);
+                self.scope.push_without_block();
                 self.compile_block_statement(body);
                 self.pop_block_scope();
             }
@@ -328,6 +322,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let fn_value = self.build_fn_value(name, return_kind, args.as_slice());
         let block = self.context.append_basic_block(fn_value, "entry");
         self.push_block_scope(block); // 作用域入栈
+
+        // 更新当前正在解析的函数
+        self.current_fn_value = Some(fn_value);
 
         // 设置形参
         let mut arg_kind_names = vec![];
@@ -385,16 +382,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             panic!("If condition expression must be a boolean type");
         }
 
-        // let empty_statements = vec![];
-        let parent = self
-            .builder
-            .get_insert_block()
-            .unwrap()
-            .get_parent()
-            .unwrap();
-        let then_block = self.context.append_basic_block(parent, "then");
-        let else_block = self.context.append_basic_block(parent, "else");
-        let if_continue_block = self.context.append_basic_block(parent, "if_continue");
+        let fn_value = self.current_fn_value.unwrap();
+        let then_block = self.context.append_basic_block(fn_value, "then");
+        let else_block = self.context.append_basic_block(fn_value, "else");
+        let if_continue_block = self.context.append_basic_block(fn_value, "if_continue");
 
         // build condition branch
         let condition = self.compile_expression(condition.deref()).into_int_value();

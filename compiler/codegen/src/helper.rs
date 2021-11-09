@@ -177,6 +177,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let len = arguments.len();
         for (i, arg) in arguments.iter().enumerate() {
             let arg = arg.deref();
+            let arg_value = self.compile_expression(arg);
             let infer_kind = self.infer_expression_kind(arg);
             let infer_kind_name = infer_kind.read_kind_name().unwrap();
             match infer_kind_name {
@@ -185,7 +186,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .print_fns
                         .get(infer_kind_name.to_string().as_str())
                         .unwrap();
-                    let arg_value = self.compile_expression(arg);
                     self.build_call_fn(fn_value, &[arg_value.into()], "CALL.sys_print");
                 }
                 KindName::Void => {}
