@@ -10,18 +10,24 @@ impl<'a> Parser<'a> {
         let statement = match self.current_token.token_type {
             TokenType::Keyword => {
                 let value = &self.current_token.value;
-                if value == "fn" {
-                    if self.current_block_level > 0 {
-                        panic!("The function can only be defined at the root")
+                match value.as_bytes() {
+                    b"fn" => {
+                        omit_tailing_semi = true;
+                        self.parse_function_declaration()
                     }
-                    omit_tailing_semi = true;
-                    self.parse_function_declaration()
-                } else if value == "var" {
-                    self.parse_variable_declaration()
-                } else if value == "return" {
-                    self.parse_return_statement()
-                } else {
-                    self.unexpected()
+                    b"var" => self.parse_variable_declaration(),
+                    b"return" => self.parse_return_statement(),
+                    b"if" => {
+                        omit_tailing_semi = true;
+                        self.parse_if_statement()
+                    }
+                    b"loop" => {
+                        omit_tailing_semi = true;
+                        self.parse_loop_statement()
+                    }
+                    b"break" => self.parse_break_statement(),
+                    b"continue" => self.parse_continue_statement(),
+                    _ => self.unexpected(),
                 }
             }
             TokenType::Identifier | TokenType::Number | TokenType::ParenL => {
@@ -50,6 +56,10 @@ impl<'a> Parser<'a> {
 
     // 解析函数定义语句
     pub fn parse_function_declaration(&mut self) -> Node {
+        if self.current_block_level > 0 {
+            panic!("The function can only be defined at the root")
+        }
+
         self.allow_return = true;
         self.next_token();
 
@@ -158,5 +168,54 @@ impl<'a> Parser<'a> {
         self.next_token();
         let argument = Box::new(self.parse_expression());
         Node::ReturnStatement { argument }
+    }
+
+    // 解析 if 语句
+    pub fn parse_if_statement(&mut self) -> Node {
+        // 递归解析时，如果不是 else-if，只需解析块语句就行了
+        if !self.is_keyword("if") {
+            return self.parse_block_statement();
+        }
+
+        self.next_token();
+
+        // condition
+        let has_paren = self.consume(TokenType::ParenL);
+        let condition = self.parse_expression();
+        if has_paren {
+            self.consume_or_panic(TokenType::ParenR);
+        }
+
+        // consequent
+        let consequent = self.parse_block_statement();
+
+        // alternate
+        let alternate = if self.is_keyword("else") {
+            self.next_token();
+            Some(Box::new(self.parse_if_statement()))
+        } else {
+            None
+        };
+
+        Node::IfStatement {
+            condition: Box::new(condition),
+            consequent: Box::new(consequent),
+            alternate,
+        }
+    }
+
+    // 解析 loop 循环语句
+    pub fn parse_loop_statement(&mut self) -> Node {
+        Node::NumberLiteral { value: 0.3 }
+    }
+
+    // 解析 break 语句
+    pub fn parse_break_statement(&mut self) -> Node {
+        Node::NumberLiteral { value: 0.3 }
+    }
+
+    // 解析 continue 语句
+    pub fn parse_continue_statement(&mut self) -> Node {
+        Node::NumberLiteral { value: 0.3 }
     }
 }

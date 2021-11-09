@@ -6,13 +6,13 @@ use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine, JitFunction};
 use inkwell::module::Module;
 use inkwell::targets::{
-    CodeModel, FileType, InitializationConfig, RelocMode, Target,
-    TargetMachine, TargetTriple,
+    CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
+    TargetTriple,
 };
 use inkwell::types::{BasicMetadataTypeEnum, FloatType, FunctionType};
 use inkwell::values::{
-    BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallableValue,
-    FunctionValue, PointerValue,
+    BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallableValue, FunctionValue,
+    PointerValue,
 };
 use inkwell::OptimizationLevel;
 use std::collections::HashMap;
@@ -56,14 +56,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         if is_debug {
             // 控制台打印 IR 码
-            println!(
-                "\n================================ LLVM-IR ================================"
-            );
+            println!("\n================================ LLVM-IR ================================");
             module.print_to_stderr();
 
-            println!(
-                "\n================================ OUTPUT ================================="
-            );
+            println!("\n================================ OUTPUT =================================");
         }
 
         // Target::initialize_all(&InitializationConfig::default());
@@ -85,8 +81,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         // );
 
         unsafe {
-            execution_engine
-                .run_function(compiler.bootstrap_fn.unwrap(), &vec![]);
+            execution_engine.run_function(compiler.bootstrap_fn.unwrap(), &vec![]);
         }
     }
 
@@ -154,9 +149,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         root.add(name, scope_type);
     }
 
-    pub fn push_block_scope(&mut self, basic_block: &BasicBlock<'ctx>) {
+    pub fn push_block_scope(&mut self, basic_block: BasicBlock<'ctx>) {
         self.scope.push(basic_block);
-        self.builder.position_at_end(*basic_block);
+        self.builder.position_at_end(basic_block);
     }
 
     pub fn pop_block_scope(&mut self) {
@@ -269,14 +264,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     Node::BlockStatement { body } => body,
                     _ => never(),
                 };
-                self.compile_function(
-                    name,
-                    &args,
-                    arguments,
-                    body,
-                    return_kind,
-                    false,
-                );
+                self.compile_function(name, &args, arguments, body, return_kind, false);
             }
             Node::VariableDeclaration { id, init } => {
                 let (id, mut kind) = id.deref().read_identifier();
@@ -297,15 +285,31 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 );
             }
             Node::BlockStatement { body } => {
-                self.compile_block_statement(body, false);
+                let parent = self
+                    .builder
+                    .get_insert_block()
+                    .unwrap()
+                    .get_parent()
+                    .unwrap();
+                let anonymous_block =
+                    self.context.append_basic_block(parent, "anonymous");
+                self.push_block_scope(anonymous_block);
+                self.compile_block_statement(body);
+                self.pop_block_scope();
             }
             Node::ReturnStatement { argument } => {
-                self.builder.build_return(Some(
-                    &self.compile_expression(argument.deref()),
-                ));
+                self.builder
+                    .build_return(Some(&self.compile_expression(argument.deref())));
             }
             Node::ExpressionStatement { expression } => {
                 self.compile_expression(expression.deref());
+            }
+            Node::IfStatement {
+                condition,
+                consequent,
+                alternate,
+            } => {
+                self.compile_if_statement(condition, consequent, alternate);
             }
             _ => never(),
         }
@@ -322,8 +326,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         is_only_block: bool,
     ) -> FunctionValue<'ctx> {
         let fn_value = self.build_fn_value(name, return_kind, args.as_slice());
-        let block = self.context.append_basic_block(fn_value, "");
-        self.push_block_scope(&block); // 作用域入栈
+        let block = self.context.append_basic_block(fn_value, "entry");
+        self.push_block_scope(block); // 作用域入栈
 
         // 设置形参
         let mut arg_kind_names = vec![];
@@ -351,7 +355,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         // compile function body
-        self.compile_block_statement(body, true);
+        for stat in body.iter() {
+            self.compile_statement(stat.deref());
+        }
         // 函数体最后都返回 void 作为返回的默认值
         self.builder.build_return(None);
 
@@ -360,25 +366,86 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         fn_value
     }
 
-    pub fn compile_block_statement(
-        &mut self,
-        node: &Vec<Box<Node>>,
-        is_fn_block: bool,
-    ) {
-        if !is_fn_block {
-            // TODO: 暂不实现块作用域
-            self.compile_function(
-                "anonymous",
-                &vec![],
-                &vec![],
-                node,
-                &Kind::create("void"),
-                true,
-            );
-        } else {
-            for stat in node {
-                self.compile_statement(stat.deref());
-            }
+    // 编译块语句
+    pub fn compile_block_statement(&mut self, statements: &Vec<Box<Node>>) {
+        for stat in statements.iter() {
+            self.compile_statement(stat.deref());
         }
+    }
+
+    // 编译 if 语句
+    pub fn compile_if_statement(
+        &mut self,
+        condition: &Node,
+        consequent: &Node,
+        alternate: &Option<Box<Node>>,
+    ) {
+        let infer_condition_kind = self.infer_expression_kind(condition.deref());
+        if *infer_condition_kind.read_kind_name().unwrap() != KindName::Boolean {
+            panic!("If condition expression must be a boolean type");
+        }
+
+        // let empty_statements = vec![];
+        let parent = self
+            .builder
+            .get_insert_block()
+            .unwrap()
+            .get_parent()
+            .unwrap();
+        let then_block = self.context.append_basic_block(parent, "then");
+        let else_block = self.context.append_basic_block(parent, "else");
+        let if_continue_block = self.context.append_basic_block(parent, "if_continue");
+
+        // build condition branch
+        let condition = self.compile_expression(condition.deref()).into_int_value();
+        self.builder
+            .build_conditional_branch(condition, then_block, else_block);
+
+        // build then block
+        self.push_block_scope(then_block);
+        self.compile_block_statement(consequent.read_block_body());
+        self.builder.build_unconditional_branch(if_continue_block);
+        self.pop_block_scope();
+
+        // build else block
+        self.push_block_scope(else_block);
+        match alternate {
+            Some(v) => {
+                match v.deref() {
+                    // else-if
+                    Node::IfStatement {
+                        condition,
+                        consequent,
+                        alternate,
+                    } => {
+                        self.compile_if_statement(
+                            condition.deref(),
+                            consequent.deref(),
+                            alternate,
+                        );
+                        self.builder.build_unconditional_branch(if_continue_block);
+                    }
+                    // else
+                    Node::BlockStatement { body } => {
+                        self.compile_block_statement(v.read_block_body());
+                        self.builder.build_unconditional_branch(if_continue_block);
+                    }
+                    _ => never(),
+                }
+            }
+            None => {
+                self.builder.build_unconditional_branch(if_continue_block);
+            }
+        };
+        self.pop_block_scope();
+
+        // 继续构建 if 语句之后的逻辑
+        self.builder.position_at_end(if_continue_block);
+
+        // let phi = self.builder.build_phi(self.build_number_type(), "iftmp");
+        // phi.add_incoming(&[
+        //     (&(self.build_number_value(1.0).into()), then_block),
+        //     (&(self.build_number_value(1.0).into()), else_block),
+        // ]);
     }
 }

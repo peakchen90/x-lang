@@ -5,12 +5,10 @@ use crate::compiler::Compiler;
 use crate::scope::ScopeType;
 use inkwell::comdat::ComdatSelectionKind;
 use inkwell::context::Context;
-use inkwell::types::{
-    BasicMetadataTypeEnum, FloatType, FunctionType, IntType, VoidType,
-};
+use inkwell::types::{BasicMetadataTypeEnum, FloatType, FunctionType, IntType, VoidType};
 use inkwell::values::{
-    BasicMetadataValueEnum, BasicValue, BasicValueEnum, FloatValue,
-    FunctionValue, IntValue, PointerValue,
+    BasicMetadataValueEnum, BasicValue, BasicValueEnum, FloatValue, FunctionValue,
+    IntValue, PointerValue,
 };
 use std::env::args;
 use std::ops::Deref;
@@ -91,20 +89,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    pub fn get_declare_var(
-        &self,
-        name: &str,
-    ) -> (&Kind, &Option<PointerValue<'ctx>>) {
+    pub fn get_declare_var(&self, name: &str) -> (&Kind, &Option<PointerValue<'ctx>>) {
         self.scope
             .search_by_name(name, false)
             .expect(&format!("Variable `{}` is not found", name))
             .get_var()
     }
 
-    pub fn get_declare_var_ptr(
-        &self,
-        name: &str,
-    ) -> &Option<PointerValue<'ctx>> {
+    pub fn get_declare_var_ptr(&self, name: &str) -> &Option<PointerValue<'ctx>> {
         let (_, ptr) = self.get_declare_var(name);
         ptr
     }
@@ -146,11 +138,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 system_print_bool as usize,
             );
             // print newline
-            self.bind_system_print_fn(
-                "newline",
-                None,
-                system_print_newline as usize,
-            );
+            self.bind_system_print_fn("newline", None, system_print_newline as usize);
         }
     }
 
@@ -165,7 +153,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             None => vec![],
         };
         let print_fn_value = self.build_fn_value(
-            "print",
+            &format!("print_{}", type_name),
             &Kind::create("void"),
             arg_types.as_slice(),
         );
@@ -200,11 +188,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         .get(infer_kind_name.to_string().as_str())
                         .unwrap();
                     let arg_value = self.compile_expression(arg);
-                    self.build_call_fn(
-                        fn_value,
-                        &[arg_value.into()],
-                        "CALL.sys_print",
-                    );
+                    self.build_call_fn(fn_value, &[arg_value.into()], "CALL.sys_print");
                 }
                 KindName::Void => {}
             }

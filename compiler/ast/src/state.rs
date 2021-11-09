@@ -10,7 +10,7 @@ pub struct Parser<'a> {
     pub current_char: char,         // 当前字符
     pub current_token: Token,       // 当前 token
     pub allow_expr: bool,           // 当前上下文是否允许表达式
-    pub allow_return: bool, // 当前上下文是否允许 return 语句
+    pub allow_return: bool,         // 当前上下文是否允许 return 语句
     pub current_block_level: usize, // 当前进入到第几层块级作用域
     pub node: Option<Node>,         // 解析的 ast
 }
@@ -76,6 +76,10 @@ impl<'a> Parser<'a> {
         } else {
             self.current_char = 0 as char;
         }
+    }
+
+    pub fn is_keyword(&self, keyword: &str) -> bool {
+        self.is_token(TokenType::Keyword) && self.current_token.value == keyword
     }
 
     // 判断是否是某一类型的token

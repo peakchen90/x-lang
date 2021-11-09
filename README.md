@@ -13,7 +13,7 @@ fn add(a: num, b: num) -> num {
 var n: num = 3;
 var result = add(n, 4.2);
 
-// 调用系统内置的打印方法，只接收一个数字类型参数，无返回值
+// 调用系统内置的打印方法
 print(result);
 ```
 

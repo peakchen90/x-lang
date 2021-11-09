@@ -1,5 +1,8 @@
 // 关键字
-const KEYWORDS: [&str; 5] = ["fn", "var", "return", "true", "false"];
+const KEYWORDS: [&str; 10] = [
+    "fn", "var", "return", "true", "false", "if", "else", "loop", "break",
+    "continue",
+];
 
 fn array_index_of_str(arr: &[&str], value: &str) -> isize {
     for (i, v) in arr.iter().enumerate() {
@@ -39,7 +42,7 @@ impl KindName {
                     panic!("Unexpected kind: {}", kind_str);
                 }
                 KindName::Void
-            },
+            }
             _ => panic!("Error"),
         }
     }
@@ -142,6 +145,21 @@ pub enum Node {
     ExpressionStatement {
         expression: Box<Node>,
     },
+    IfStatement {
+        condition: Box<Node>,
+        consequent: Box<Node>,
+        alternate: Option<Box<Node>>,
+    },
+    LoopStatement {
+        condition: Box<Node>,
+        body: Box<Node>,
+    },
+    BreakStatement {
+        label: Option<Box<Node>>
+    },
+    ContinueStatement {
+        label: Option<Box<Node>>
+    },
 
     // expressions
     CallExpression {
@@ -174,25 +192,6 @@ pub enum Node {
 }
 
 impl Node {
-    // 返回 node 类型名
-    pub fn node_type(&self) -> String {
-        let str = match self {
-            Node::Program { .. } => "Program",
-            Node::FunctionDeclaration { .. } => "FunctionDeclaration",
-            Node::VariableDeclaration { .. } => "VariableDeclaration",
-            Node::BlockStatement { .. } => "BlockStatement",
-            Node::ReturnStatement { .. } => "ReturnStatement",
-            Node::ExpressionStatement { .. } => "ExpressionStatement",
-            Node::CallExpression { .. } => "CallExpression",
-            Node::BinaryExpression { .. } => "BinaryExpression",
-            Node::AssignmentExpression { .. } => "AssignmentExpression",
-            Node::Identifier { .. } => "Identifier",
-            Node::NumberLiteral { .. } => "NumberLiteral",
-            Node::BooleanLiteral { .. } => "BooleanLiteral",
-        };
-        str.to_string()
-    }
-
     // 读取一个数字节点的值
     pub fn read_number(&self) -> f64 {
         match self {
@@ -213,6 +212,14 @@ impl Node {
     pub fn read_identifier(&self) -> (&str, &Kind) {
         match self {
             Node::Identifier { name, kind } => (name, kind),
+            _ => panic!("Error"),
+        }
+    }
+
+    // 读取块语句的 body
+    pub fn read_block_body(&self) -> &Vec<Box<Node>> {
+        match self {
+            Node::BlockStatement { body } => body,
             _ => panic!("Error"),
         }
     }

@@ -1,9 +1,25 @@
-// 注释
-fn add(a: num, b: num) -> num {
-    return a + b;
+
+
+fn xx(a: bool) -> void {
+    if a {
+        print(1);
+    } else if(a)  {
+
+        print(2);
+    } else {
+    print(44);
+    print(3);
+     if (true) {
+      print(999);
+      if (true) {
+            print(888);
+           }
+     } else {
+        print(555);
+     }
+    }
+
+    print(3);
 }
 
-var n = ((3 + 5) / 0.000000003) * 5;
-var result = add(n, 4.2);
-
-print(result); // 调用系统内置方法
+xx(false);
