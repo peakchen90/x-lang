@@ -58,11 +58,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let (name, ..) = callee.read_identifier();
 
         // print 方法调用特殊处理
-        if name == "print" {
-            match self.scope.search_by_name(name, true) {
-                Some(_) => {} // 用户已定义，覆盖系统内置方法
-                None => return self.build_call_system_print(arguments),
-            }
+        if name == "print" && self.scope.search_by_name(name, true).is_none() {
+            return self.build_call_system_print(arguments);
         }
 
         let (fn_value, arg_kind_names, _) = self.get_declare_fn(name);
@@ -104,35 +101,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         match operator.as_bytes() {
             b"+" => self
                 .builder
-                .build_float_add(
-                    left.into_float_value(),
-                    right.into_float_value(),
-                    "ADD",
-                )
+                .build_float_add(left.into_float_value(), right.into_float_value(), "ADD")
                 .as_basic_value_enum(),
             b"-" => self
                 .builder
-                .build_float_sub(
-                    left.into_float_value(),
-                    right.into_float_value(),
-                    "SUB",
-                )
+                .build_float_sub(left.into_float_value(), right.into_float_value(), "SUB")
                 .as_basic_value_enum(),
             b"*" => self
                 .builder
-                .build_float_mul(
-                    left.into_float_value(),
-                    right.into_float_value(),
-                    "MUL",
-                )
+                .build_float_mul(left.into_float_value(), right.into_float_value(), "MUL")
                 .as_basic_value_enum(),
             b"/" => self
                 .builder
-                .build_float_div(
-                    left.into_float_value(),
-                    right.into_float_value(),
-                    "DIV",
-                )
+                .build_float_div(left.into_float_value(), right.into_float_value(), "DIV")
                 .as_basic_value_enum(),
             _ => never(),
         }
