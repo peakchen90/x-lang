@@ -112,11 +112,6 @@ impl<'ctx> BlockScope<'ctx> {
         self._scopes.push(scope);
     }
 
-    // 将一个新的块级作用域压入栈中（无代码块）
-    pub fn push_without_block(&mut self) {
-        self._scopes.push(Scope::new(None));
-    }
-
     // 当前块级作用域出栈
     pub fn pop(&mut self) {
         self._scopes.pop();

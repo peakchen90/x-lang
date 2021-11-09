@@ -282,9 +282,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 );
             }
             Node::BlockStatement { body } => {
-                self.scope.push_without_block();
+                let fn_value = self.current_fn_value.unwrap();
+                let basic_block = self.context.append_basic_block(fn_value, "block");
+                let continue_block =
+                    self.context.append_basic_block(fn_value, "block_continue");
+                self.builder.build_unconditional_branch(basic_block); // 切换到块
+
+                // 作用域入栈
+                self.push_block_scope(basic_block);
                 self.compile_block_statement(body);
+                self.builder.build_unconditional_branch(continue_block); // 切换到块继续
                 self.pop_block_scope();
+
+                // 设置块继续为最后的位置，以便于继续编译下面的代码
+                self.builder.position_at_end(continue_block);
             }
             Node::ReturnStatement { argument } => match argument {
                 Some(v) => {
