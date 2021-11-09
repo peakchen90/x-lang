@@ -23,8 +23,9 @@ pub struct Compiler<'a, 'ctx> {
     pub scope: &'a mut BlockScope<'ctx>,
     pub execution_engine: &'a ExecutionEngine<'ctx>,
     pub print_fns: HashMap<&'a str, FunctionValue<'ctx>>,
-    pub current_fn_value: Option<FunctionValue<'ctx>>,
-    bootstrap_fn: Option<FunctionValue<'ctx>>,
+    pub main_fn: Option<FunctionValue<'ctx>>,
+    pub current_fn: Option<FunctionValue<'ctx>>,
+    pub is_debug: bool,
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
@@ -43,9 +44,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             builder,
             scope,
             execution_engine,
-            bootstrap_fn: None,
-            current_fn_value: None,
+            main_fn: None,
+            current_fn: None,
             print_fns: HashMap::new(),
+            is_debug,
         };
 
         // 开始编译
@@ -78,7 +80,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         // );
 
         unsafe {
-            execution_engine.run_function(compiler.bootstrap_fn.unwrap(), &vec![]);
+            execution_engine.run_function(compiler.main_fn.unwrap(), &vec![]);
         }
     }
 
@@ -223,7 +225,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         match node {
             Node::Program { body } => {
-                self.bootstrap_fn = Some(self.compile_function(
+                self.main_fn = Some(self.compile_function(
                     "main",
                     &vec![],
                     &vec![],
@@ -236,7 +238,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         };
     }
 
-    pub fn compile_statement(&mut self, node: &Node) {
+    // 构建语句，返回值表示语句中是否 return 了
+    pub fn compile_statement(&mut self, node: &Node) -> bool {
         match node {
             Node::FunctionDeclaration {
                 id,
@@ -262,6 +265,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     _ => never(),
                 };
                 self.compile_function(name, &args, arguments, body, return_kind, false);
+                false
             }
             Node::VariableDeclaration { id, init } => {
                 let (id, mut kind) = id.deref().read_identifier();
@@ -280,9 +284,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     Some(init_value.as_basic_value_enum()),
                     false,
                 );
+                false
             }
             Node::BlockStatement { body } => {
-                let fn_value = self.current_fn_value.unwrap();
+                let fn_value = self.current_fn.unwrap();
                 let basic_block = self.context.append_basic_block(fn_value, "block");
                 let continue_block =
                     self.context.append_basic_block(fn_value, "block_continue");
@@ -290,24 +295,29 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                 // 作用域入栈
                 self.push_block_scope(basic_block);
-                self.compile_block_statement(body);
+                let is_returned = self.compile_block_statement(body);
                 self.builder.build_unconditional_branch(continue_block); // 切换到块继续
                 self.pop_block_scope();
 
                 // 设置块继续为最后的位置，以便于继续编译下面的代码
                 self.builder.position_at_end(continue_block);
+                is_returned
             }
-            Node::ReturnStatement { argument } => match argument {
-                Some(v) => {
-                    self.builder
-                        .build_return(Some(&self.compile_expression(v.deref())));
-                }
-                None => {
-                    self.builder.build_return(None);
-                }
-            },
+            Node::ReturnStatement { argument } => {
+                match argument {
+                    Some(v) => {
+                        self.builder
+                            .build_return(Some(&self.compile_expression(v.deref())));
+                    }
+                    None => {
+                        self.builder.build_return(None);
+                    }
+                };
+                true
+            }
             Node::ExpressionStatement { expression } => {
                 self.compile_expression(expression.deref());
+                false
             }
             Node::IfStatement {
                 condition,
@@ -315,6 +325,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 alternate,
             } => {
                 self.compile_if_statement(condition, consequent, alternate);
+                false
             }
             _ => never(),
         }
@@ -331,11 +342,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         is_only_block: bool,
     ) -> FunctionValue<'ctx> {
         let fn_value = self.build_fn_value(name, return_kind, args.as_slice());
-        let block = self.context.append_basic_block(fn_value, "entry");
-        self.push_block_scope(block); // 作用域入栈
+        let entry_block = self.context.append_basic_block(fn_value, "entry");
+        self.push_block_scope(entry_block); // 作用域入栈
 
         // 更新当前正在解析的函数
-        self.current_fn_value = Some(fn_value);
+        self.current_fn = Some(fn_value);
 
         // 设置形参
         let mut arg_kind_names = vec![];
@@ -362,23 +373,33 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             self.put_function(name, &fn_value, arg_kind_names, &return_kind);
         }
 
-        // compile function body
-        for stat in body.iter() {
-            self.compile_statement(stat.deref());
-        }
-        // 函数体最后都返回 void 作为返回的默认值
+        // 编译函数体
+        self.compile_block_statement(body);
         self.builder.build_return(None);
 
         self.pop_block_scope();
 
+        // 验证函数，输出错误信息
+        if !fn_value.verify(true) {
+            if self.is_debug {
+                println!("\n======================= IR =======================\n");
+                self.module.print_to_stderr();
+            }
+            unsafe { fn_value.delete() }
+        }
         fn_value
     }
 
-    // 编译块语句
-    pub fn compile_block_statement(&mut self, statements: &Vec<Box<Node>>) {
+    // 编译块语句，返回在语句中间是否执行了 return 语句
+    pub fn compile_block_statement(&mut self, statements: &Vec<Box<Node>>) -> bool {
+        let mut is_returned = false;
         for stat in statements.iter() {
-            self.compile_statement(stat.deref());
+            is_returned = self.compile_statement(stat.deref());
+            if is_returned {
+                break;
+            }
         }
+        is_returned
     }
 
     // 编译 if 语句
@@ -393,7 +414,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             panic!("If condition expression must be a boolean type");
         }
 
-        let fn_value = self.current_fn_value.unwrap();
+        let fn_value = self.current_fn.unwrap();
         let then_block = self.context.append_basic_block(fn_value, "then");
         let else_block = self.context.append_basic_block(fn_value, "else");
         let if_continue_block = self.context.append_basic_block(fn_value, "if_continue");
@@ -405,11 +426,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // build then block
         self.push_block_scope(then_block);
-        self.compile_block_statement(consequent.read_block_body());
-        self.builder.build_unconditional_branch(if_continue_block);
+        let mut is_returned = self.compile_block_statement(consequent.read_block_body());
+        if !is_returned {
+            self.builder.build_unconditional_branch(if_continue_block);
+        }
         self.pop_block_scope();
 
         // build else block
+        is_returned = false;
         self.push_block_scope(else_block);
         if alternate.is_some() {
             match alternate.as_ref().unwrap().deref() {
@@ -427,21 +451,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
                 // else
                 Node::BlockStatement { body } => {
-                    self.compile_block_statement(body);
+                    is_returned = self.compile_block_statement(body);
                 }
                 _ => never(),
             }
         }
-        self.builder.build_unconditional_branch(if_continue_block);
+        if !is_returned {
+            self.builder.build_unconditional_branch(if_continue_block);
+        }
         self.pop_block_scope();
 
         // 继续构建 if 语句之后的逻辑
         self.builder.position_at_end(if_continue_block);
-
-        // let phi = self.builder.build_phi(self.build_number_type(), "iftmp");
-        // phi.add_incoming(&[
-        //     (&(self.build_number_value(1.0).into()), then_block),
-        //     (&(self.build_number_value(1.0).into()), else_block),
-        // ]);
     }
 }

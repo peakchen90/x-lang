@@ -43,7 +43,7 @@ impl KindName {
                 }
                 KindName::Void
             }
-            _ => panic!("Error"),
+            _ => panic!("Invalid type: {}", kind_str),
         }
     }
 
