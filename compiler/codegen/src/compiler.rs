@@ -14,7 +14,6 @@ use std::ops::Deref;
 use std::path::Path;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::{Kind, KindName};
-use x_lang_ast::visitor::Visitor;
 
 pub struct Compiler<'a, 'ctx> {
     pub context: &'ctx Context,
@@ -84,142 +83,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    pub fn put_variable(
-        &mut self,
-        name: &str,
-        kind: Kind,
-        value: Option<BasicValueEnum<'ctx>>,
-        is_arg: bool, // 是否是函数参数
-    ) {
-        let current = self.scope.current().unwrap();
-        if current.has(name) {
-            panic!("Scope name `{}` is exist", name);
-        }
-
-        // 内存中的描述名称
-        let mem_name = match is_arg {
-            true => format!("ARGUMENT.{}", name),
-            false => name.to_string(),
-        };
-        let ptr = match kind
-            .read_kind_name()
-            .expect("Can not declare void type variable")
-        {
-            KindName::Number => {
-                let ty = self.build_number_type();
-                let ptr = self.builder.build_alloca(ty, &mem_name);
-                if let Some(v) = value {
-                    self.builder.build_store(ptr, v.into_float_value());
-                }
-                Some(ptr)
-            }
-            KindName::Boolean => {
-                let ty = self.build_bool_type();
-                let ptr = self.builder.build_alloca(ty, &mem_name);
-                if let Some(v) = value {
-                    self.builder.build_store(ptr, v.into_int_value());
-                }
-                Some(ptr)
-            }
-            KindName::Void => None,
-        };
-
-        let scope_type = ScopeType::Variable { kind, ptr };
-        self.scope.put_variable(name, scope_type);
-    }
-
-    pub fn put_function(
-        &mut self,
-        name: &str,
-        fn_value: &FunctionValue<'ctx>,
-        arg_kind_names: Vec<KindName>,
-        return_kind: &Kind,
-    ) {
-        let mut root = self.scope.root().unwrap();
-        if root.has(name) {
-            panic!("Scope name `{}` is exist", name);
-        }
-
-        let scope_type = ScopeType::Function {
-            fn_value: *fn_value,
-            return_kind: *return_kind,
-            arg_kind_names,
-        };
-        root.add(name, scope_type);
-    }
-
-    pub fn push_block_scope(&mut self, basic_block: BasicBlock<'ctx>) {
-        self.scope.push(basic_block);
-        self.builder.position_at_end(basic_block);
-    }
-
-    pub fn pop_block_scope(&mut self) {
-        self.scope.pop();
-        if let Some(v) = self.scope.current() {
-            if let Some(b) = v.basic_block {
-                self.builder.position_at_end(b);
-            }
-        }
-    }
-
-    // 推断表达式的返回类型
-    pub fn infer_expression_kind(&self, expr: &Node) -> Kind {
-        let mut ret_kind = Kind::None;
-
-        Visitor::walk(expr, &mut |node, mut visitor| match node {
-            Node::CallExpression { callee, .. } => {
-                let (name, ..) = callee.deref().read_identifier();
-                match self.scope.search_by_name(name, false) {
-                    Some(v) => {
-                        if v.is_fn() {
-                            let (.., return_kind) = v.get_fn();
-                            ret_kind = *return_kind;
-                            visitor.stop();
-                        }
-                    }
-                    _ => panic!("Function `{}` is not found", name),
-                }
-            }
-            Node::BinaryExpression { left, .. } => {
-                ret_kind = self.infer_expression_kind(left.deref());
-                visitor.stop();
-            }
-            Node::AssignmentExpression { left, .. } => {
-                ret_kind = self.infer_expression_kind(left.deref());
-                visitor.stop();
-            }
-            Node::Identifier { name, kind } => match kind {
-                Kind::Some(_) => {
-                    ret_kind = *kind;
-                    visitor.stop();
-                }
-                Kind::Infer => match self.scope.search_by_name(name, false) {
-                    Some(v) => {
-                        if v.is_var() {
-                            let (kind, ..) = v.get_var();
-                            if kind.is_exact() {
-                                ret_kind = *kind;
-                                visitor.stop();
-                            }
-                        }
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            Node::NumberLiteral { .. } => {
-                ret_kind = Kind::create("num");
-                visitor.stop();
-            }
-            Node::BooleanLiteral { .. } => {
-                ret_kind = Kind::create("bool");
-                visitor.stop();
-            }
-            _ => never(),
-        });
-        ret_kind
-    }
-
     pub fn compile_program(&mut self, node: &Node) {
         self.inject_build_in();
 
@@ -238,7 +101,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         };
     }
 
-    // 构建语句，返回值表示语句中是否 return 了
+    // 编译一条语句，返回在语句中间是否执行了 return 语句
     pub fn compile_statement(&mut self, node: &Node) -> bool {
         match node {
             Node::FunctionDeclaration {
@@ -268,51 +131,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 false
             }
             Node::VariableDeclaration { id, init } => {
-                let (id, mut kind) = id.deref().read_identifier();
-                let init = init.deref();
-
-                // Note: 避免下面的临时变量生命周期不够长，临时借用变量
-                let temp_borrowed;
-                if !kind.is_exact() {
-                    temp_borrowed = self.infer_expression_kind(init);
-                    kind = &temp_borrowed;
-                }
-                let init_value = self.compile_expression(init);
-                self.put_variable(
-                    id,
-                    *kind,
-                    Some(init_value.as_basic_value_enum()),
-                    false,
-                );
+                self.compile_variable_statement(id.deref(), init.deref());
                 false
             }
-            Node::BlockStatement { body } => {
-                let fn_value = self.current_fn.unwrap();
-                let basic_block = self.context.append_basic_block(fn_value, "block");
-                let continue_block =
-                    self.context.append_basic_block(fn_value, "block_continue");
-                self.builder.build_unconditional_branch(basic_block); // 切换到块
-
-                // 作用域入栈
-                self.push_block_scope(basic_block);
-                let is_returned = self.compile_block_statement(body);
-                self.builder.build_unconditional_branch(continue_block); // 切换到块继续
-                self.pop_block_scope();
-
-                // 设置块继续为最后的位置，以便于继续编译下面的代码
-                self.builder.position_at_end(continue_block);
-                is_returned
-            }
+            Node::BlockStatement { body } => self.compile_block_statement(body, true),
             Node::ReturnStatement { argument } => {
-                match argument {
-                    Some(v) => {
-                        self.builder
-                            .build_return(Some(&self.compile_expression(v.deref())));
-                    }
-                    None => {
-                        self.builder.build_return(None);
-                    }
-                };
+                self.compile_return_statement(argument);
                 true
             }
             Node::ExpressionStatement { expression } => {
@@ -331,7 +155,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
     }
 
-    /// 编译函数声明
+    /// 编译函数声明，返回函数 value
     pub fn compile_function(
         &mut self,
         name: &str,
@@ -374,7 +198,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         // 编译函数体
-        self.compile_block_statement(body);
+        self.compile_block_statement(body, false);
         self.builder.build_return(None);
 
         self.pop_block_scope();
@@ -391,13 +215,38 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
     }
 
     // 编译块语句，返回在语句中间是否执行了 return 语句
-    pub fn compile_block_statement(&mut self, statements: &Vec<Box<Node>>) -> bool {
+    pub fn compile_block_statement(
+        &mut self,
+        statements: &Vec<Box<Node>>,
+        is_new_scope: bool,
+    ) -> bool {
+        let mut continue_block = self.builder.get_insert_block().unwrap();
+        if is_new_scope {
+            let fn_value = self.current_fn.unwrap();
+            let basic_block = self.context.append_basic_block(fn_value, "block");
+            continue_block = self.context.append_basic_block(fn_value, "block_continue");
+            self.builder.build_unconditional_branch(basic_block); // 切换到块
+
+            // 作用域入栈
+            self.push_block_scope(basic_block);
+        }
+
         let mut is_returned = false;
         for stat in statements.iter() {
             is_returned = self.compile_statement(stat.deref());
             if is_returned {
                 break;
             }
+        }
+
+        if is_new_scope {
+            if !is_returned {
+                self.builder.build_unconditional_branch(continue_block); // 切换到块后续
+            }
+            self.pop_block_scope();
+
+            // 设置块后续为最后的位置，以便于继续编译下面的代码
+            self.builder.position_at_end(continue_block);
         }
         is_returned
     }
@@ -426,7 +275,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // build then block
         self.push_block_scope(then_block);
-        let mut is_returned = self.compile_block_statement(consequent.read_block_body());
+        let mut is_returned =
+            self.compile_block_statement(consequent.read_block_body(), false);
         if !is_returned {
             self.builder.build_unconditional_branch(if_continue_block);
         }
@@ -451,7 +301,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
                 // else
                 Node::BlockStatement { body } => {
-                    is_returned = self.compile_block_statement(body);
+                    is_returned = self.compile_block_statement(body, false);
                 }
                 _ => never(),
             }
@@ -463,5 +313,30 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // 继续构建 if 语句之后的逻辑
         self.builder.position_at_end(if_continue_block);
+    }
+
+    pub fn compile_return_statement(&mut self, argument: &Option<Box<Node>>) {
+        match argument {
+            Some(v) => {
+                self.builder
+                    .build_return(Some(&self.compile_expression(v.deref())));
+            }
+            None => {
+                self.builder.build_return(None);
+            }
+        };
+    }
+
+    pub fn compile_variable_statement(&mut self, id: &Node, init: &Node) {
+        let (id, mut kind) = id.read_identifier();
+
+        // Note: 避免下面的临时变量生命周期不够长，临时借用变量
+        let temp_borrowed;
+        if !kind.is_exact() {
+            temp_borrowed = self.infer_expression_kind(init);
+            kind = &temp_borrowed;
+        }
+        let init_value = self.compile_expression(init);
+        self.put_variable(id, *kind, Some(init_value.as_basic_value_enum()), false);
     }
 }
