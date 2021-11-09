@@ -15,6 +15,9 @@ impl<'a> Parser<'a> {
                 match value.as_bytes() {
                     b"fn" => {
                         omit_tailing_semi = true;
+                        if self.current_block_level > 0 {
+                            panic!("Functions can only be defined up to the top level")
+                        }
                         self.parse_function_declaration()
                     }
                     b"var" => self.parse_variable_declaration(),
@@ -38,6 +41,9 @@ impl<'a> Parser<'a> {
             }
             TokenType::BraceL => {
                 omit_tailing_semi = true;
+                if self.current_block_level == 0 {
+                    panic!("Block statements can only be used inside functions")
+                }
                 self.parse_block_statement()
             }
             _ => self.unexpected(),
@@ -50,7 +56,12 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        if !omit_tailing_semi && tail_semi_count == 0 {
+        if !omit_tailing_semi
+            && tail_semi_count == 0
+            && !self.is_seen_newline
+            && !self.is_token(TokenType::EOF)
+            && !self.is_token(TokenType::BraceR)
+        {
             self.unexpected();
         }
         statement
@@ -58,10 +69,6 @@ impl<'a> Parser<'a> {
 
     // 解析函数定义语句
     pub fn parse_function_declaration(&mut self) -> Node {
-        if self.current_block_level > 0 {
-            panic!("The function can only be defined at the root")
-        }
-
         self.allow_return = true;
         self.next_token();
 
@@ -172,11 +179,10 @@ impl<'a> Parser<'a> {
         let argument = self.parse_expression();
         Node::ReturnStatement {
             argument: match argument {
-                Some(v) =>Some(Box::new(v)),
-                None => None
+                Some(v) => Some(Box::new(v)),
+                None => None,
             },
         }
-
     }
 
     // 解析 if 语句

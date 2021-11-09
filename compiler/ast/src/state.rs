@@ -7,6 +7,7 @@ pub struct Parser<'a> {
     pub chars: Vec<char>,           // 字符 vec
     pub index: usize,               // 光标位置
     pub is_start: bool,             // 光标是否在开始位置
+    pub is_seen_newline: bool,      // 读取下一个 token 时是否遇到过换行
     pub current_char: char,         // 当前字符
     pub current_token: Token,       // 当前 token
     pub allow_expr: bool,           // 当前上下文是否允许表达式
@@ -22,6 +23,7 @@ impl<'a> Parser<'a> {
             chars: input.chars().collect(),
             index: 0,
             is_start: true,
+            is_seen_newline: false,
             current_char: ' ',
             current_token: Token {
                 token_type: TokenType::EOF,

@@ -1,4 +1,4 @@
-use crate::shared::{is_keyword_str};
+use crate::shared::is_keyword_str;
 use crate::state::Parser;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -68,6 +68,7 @@ impl Token {
 impl<'a> Parser<'a> {
     // 读取下一个 token
     pub fn next_token(&mut self) {
+        self.is_seen_newline = false;
         self.skip_space();
         self.skip_comment();
 
@@ -146,9 +147,9 @@ impl<'a> Parser<'a> {
         let mut value = String::new();
         while self.check_valid_index()
             && match self.current_char {
-            'A'..='Z' | 'a'..='z' | '0'..='9' => true,
-            _ => false,
-        }
+                'A'..='Z' | 'a'..='z' | '0'..='9' => true,
+                _ => false,
+            }
         {
             value.push(self.current_char);
             self.move_index(1);
@@ -175,9 +176,9 @@ impl<'a> Parser<'a> {
 
         while self.check_valid_index()
             && match self.current_char {
-            '0'..='9' | '.' => true,
-            _ => false,
-        }
+                '0'..='9' | '.' => true,
+                _ => false,
+            }
         {
             value.push(self.current_char);
             self.move_index(1);
@@ -193,6 +194,11 @@ impl<'a> Parser<'a> {
             || self.current_char == '\n'
             || self.current_char == '\r'
         {
+            // 标记已经换行过
+            if self.current_char == '\n' || self.current_char == '\r' {
+                self.is_seen_newline = true;
+            }
+
             if self.check_valid_index() {
                 self.move_index(1);
             } else {

@@ -1,6 +1,5 @@
 use crate::helper::never;
-use crate::scope::{BlockScope, ScopeType};
-use inkwell::basic_block::BasicBlock;
+use crate::scope::BlockScope;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::execution_engine::*;
@@ -52,12 +51,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         // 开始编译
         compiler.compile_program(ast);
 
+        #[cfg(not(test))]
         if is_debug {
             // 控制台打印 IR 码
             println!("\n================================ LLVM-IR ================================");
             module.print_to_stderr();
 
             println!("\n================================ OUTPUT =================================");
+        }
+
+        unsafe {
+            execution_engine.run_function(compiler.main_fn.unwrap(), &vec![]);
         }
 
         // Target::initialize_all(&InitializationConfig::default());
@@ -77,10 +81,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         //     FileType::Object,
         //     Path::new("abc"),
         // );
-
-        unsafe {
-            execution_engine.run_function(compiler.main_fn.unwrap(), &vec![]);
-        }
     }
 
     pub fn compile_program(&mut self, node: &Node) {
@@ -147,10 +147,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 condition,
                 consequent,
                 alternate,
-            } => {
-                self.compile_if_statement(condition, consequent, alternate);
-                false
-            }
+            } => self.compile_if_statement(condition, consequent, alternate),
             _ => never(),
         }
     }
@@ -198,8 +195,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         // 编译函数体
-        self.compile_block_statement(body, false);
-        self.builder.build_return(None);
+        let is_returned = self.compile_block_statement(body, false);
+        if !is_returned {
+            self.builder.build_return(None);
+        }
 
         self.pop_block_scope();
 
@@ -208,9 +207,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             if self.is_debug {
                 println!("\n======================= IR =======================\n");
                 self.module.print_to_stderr();
+                println!("\n");
+                panic!("Compile function failure");
             }
             unsafe { fn_value.delete() }
         }
+
         fn_value
     }
 
@@ -220,11 +222,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         statements: &Vec<Box<Node>>,
         is_new_scope: bool,
     ) -> bool {
-        let mut continue_block = self.builder.get_insert_block().unwrap();
+        let mut continue_block = None;
         if is_new_scope {
             let fn_value = self.current_fn.unwrap();
             let basic_block = self.context.append_basic_block(fn_value, "block");
-            continue_block = self.context.append_basic_block(fn_value, "block_continue");
+            continue_block =
+                Some(self.context.append_basic_block(fn_value, "block_continue"));
             self.builder.build_unconditional_branch(basic_block); // 切换到块
 
             // 作用域入栈
@@ -240,8 +243,13 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         if is_new_scope {
+            let continue_block = continue_block.unwrap();
             if !is_returned {
                 self.builder.build_unconditional_branch(continue_block); // 切换到块后续
+            } else {
+                unsafe {
+                    continue_block.delete();
+                }
             }
             self.pop_block_scope();
 
@@ -257,7 +265,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         condition: &Node,
         consequent: &Node,
         alternate: &Option<Box<Node>>,
-    ) {
+    ) -> bool {
+        let condition_value = self.compile_expression(condition.deref()).into_int_value();
         let infer_condition_kind = self.infer_expression_kind(condition.deref());
         if *infer_condition_kind.read_kind_name().unwrap() != KindName::Boolean {
             panic!("If condition expression must be a boolean type");
@@ -269,21 +278,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let if_continue_block = self.context.append_basic_block(fn_value, "if_continue");
 
         // build condition branch
-        let condition = self.compile_expression(condition.deref()).into_int_value();
         self.builder
-            .build_conditional_branch(condition, then_block, else_block);
+            .build_conditional_branch(condition_value, then_block, else_block);
 
         // build then block
         self.push_block_scope(then_block);
-        let mut is_returned =
+        let mut is_then_returned =
             self.compile_block_statement(consequent.read_block_body(), false);
-        if !is_returned {
+        if !is_then_returned {
             self.builder.build_unconditional_branch(if_continue_block);
         }
         self.pop_block_scope();
 
         // build else block
-        is_returned = false;
+        let mut is_else_returned = false;
         self.push_block_scope(else_block);
         if alternate.is_some() {
             match alternate.as_ref().unwrap().deref() {
@@ -293,7 +301,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     consequent,
                     alternate,
                 } => {
-                    self.compile_if_statement(
+                    is_else_returned = self.compile_if_statement(
                         condition.deref(),
                         consequent.deref(),
                         alternate,
@@ -301,18 +309,27 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
                 // else
                 Node::BlockStatement { body } => {
-                    is_returned = self.compile_block_statement(body, false);
+                    is_else_returned = self.compile_block_statement(body, false);
                 }
                 _ => never(),
             }
         }
-        if !is_returned {
+        if !is_else_returned {
             self.builder.build_unconditional_branch(if_continue_block);
         }
         self.pop_block_scope();
 
         // 继续构建 if 语句之后的逻辑
         self.builder.position_at_end(if_continue_block);
+
+        // 如果 if / else 都return了，下方的代码直接不用执行了
+        if is_then_returned && is_else_returned {
+            unsafe {
+                if_continue_block.delete();
+            }
+            return true;
+        }
+        false
     }
 
     pub fn compile_return_statement(&mut self, argument: &Option<Box<Node>>) {
