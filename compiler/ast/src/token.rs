@@ -1,5 +1,27 @@
-use crate::shared::{is_keyword_str, TokenType};
+use crate::shared::{is_keyword_str};
 use crate::state::Parser;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum TokenType {
+    Keyword,
+    Identifier,
+    Number,
+    Boolean,
+    EOF,
+    Assign,    // =
+    Plus,      // +
+    Sub,       // -
+    Mul,       // *
+    Div,       // /
+    ParenL,    // (
+    ParenR,    // )
+    BraceL,    // {
+    BraceR,    // }
+    Comma,     // ,
+    Semi,      // ;
+    Colon,     // :
+    ReturnSym, // ->
+}
 
 #[derive(Debug)]
 pub struct Token {

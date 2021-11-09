@@ -1,5 +1,5 @@
-use crate::shared::Node;
 use std::ops::Deref;
+use crate::node::Node;
 
 pub struct Visitor {
     is_stop: bool,

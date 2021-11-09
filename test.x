@@ -22,4 +22,4 @@ fn xx(a: bool) -> void {
     print(3);
 }
 
-xx(false);
+xx(true);

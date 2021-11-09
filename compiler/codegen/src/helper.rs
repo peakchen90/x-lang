@@ -5,14 +5,12 @@ use crate::compiler::Compiler;
 use crate::scope::ScopeType;
 use inkwell::comdat::ComdatSelectionKind;
 use inkwell::context::Context;
-use inkwell::types::{BasicMetadataTypeEnum, FloatType, FunctionType, IntType, VoidType};
-use inkwell::values::{
-    BasicMetadataValueEnum, BasicValue, BasicValueEnum, FloatValue, FunctionValue,
-    IntValue, PointerValue,
-};
+use inkwell::types::*;
+use inkwell::values::*;
 use std::env::args;
 use std::ops::Deref;
-use x_lang_ast::shared::{Kind, KindName, Node};
+use x_lang_ast::node::Node;
+use x_lang_ast::shared::{Kind, KindName};
 
 // 永从不会发生，用于避免编译器报错
 pub fn never() -> ! {

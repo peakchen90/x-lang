@@ -1,5 +1,7 @@
-use crate::shared::{Kind, KindName, Node, TokenType};
+use crate::node::Node;
+use crate::shared::{Kind, KindName};
 use crate::state::Parser;
+use crate::token::TokenType;
 
 impl<'a> Parser<'a> {
     // 解析一条语句

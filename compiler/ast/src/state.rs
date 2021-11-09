@@ -1,5 +1,5 @@
-use crate::shared::{Node, TokenType};
-use crate::token::Token;
+use crate::node::Node;
+use crate::token::{Token, TokenType};
 
 #[derive(Debug)]
 pub struct Parser<'a> {

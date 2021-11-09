@@ -3,22 +3,17 @@ use crate::scope::{BlockScope, ScopeType};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
-use inkwell::execution_engine::{ExecutionEngine, JitFunction};
+use inkwell::execution_engine::*;
 use inkwell::module::Module;
-use inkwell::targets::{
-    CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
-    TargetTriple,
-};
-use inkwell::types::{BasicMetadataTypeEnum, FloatType, FunctionType};
-use inkwell::values::{
-    BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallableValue, FunctionValue,
-    PointerValue,
-};
+use inkwell::targets::*;
+use inkwell::types::*;
+use inkwell::values::*;
 use inkwell::OptimizationLevel;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::Path;
-use x_lang_ast::shared::{Kind, KindName, Node};
+use x_lang_ast::node::Node;
+use x_lang_ast::shared::{Kind, KindName};
 use x_lang_ast::visitor::Visitor;
 
 pub struct Compiler<'a, 'ctx> {
@@ -409,34 +404,28 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // build else block
         self.push_block_scope(else_block);
-        match alternate {
-            Some(v) => {
-                match v.deref() {
-                    // else-if
-                    Node::IfStatement {
-                        condition,
-                        consequent,
+        if alternate.is_some() {
+            match alternate.as_ref().unwrap().deref() {
+                // else-if
+                Node::IfStatement {
+                    condition,
+                    consequent,
+                    alternate,
+                } => {
+                    self.compile_if_statement(
+                        condition.deref(),
+                        consequent.deref(),
                         alternate,
-                    } => {
-                        self.compile_if_statement(
-                            condition.deref(),
-                            consequent.deref(),
-                            alternate,
-                        );
-                        self.builder.build_unconditional_branch(if_continue_block);
-                    }
-                    // else
-                    Node::BlockStatement { body } => {
-                        self.compile_block_statement(v.read_block_body());
-                        self.builder.build_unconditional_branch(if_continue_block);
-                    }
-                    _ => never(),
+                    );
                 }
+                // else
+                Node::BlockStatement { body } => {
+                    self.compile_block_statement(body);
+                }
+                _ => never(),
             }
-            None => {
-                self.builder.build_unconditional_branch(if_continue_block);
-            }
-        };
+        }
+        self.builder.build_unconditional_branch(if_continue_block);
         self.pop_block_scope();
 
         // 继续构建 if 语句之后的逻辑

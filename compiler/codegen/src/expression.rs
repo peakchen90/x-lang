@@ -1,8 +1,9 @@
 use crate::compiler::Compiler;
 use crate::helper::never;
-use inkwell::values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum};
+use inkwell::values::*;
 use std::ops::Deref;
-use x_lang_ast::shared::{Kind, Node};
+use x_lang_ast::node::Node;
+use x_lang_ast::shared::Kind;
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {
     pub fn compile_expression(&self, node: &Node) -> BasicValueEnum<'ctx> {

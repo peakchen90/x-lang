@@ -1,5 +1,7 @@
-use crate::shared::{Kind, Node, TokenType};
+use crate::node::Node;
+use crate::shared::{Kind};
 use crate::state::Parser;
+use crate::token::TokenType;
 
 impl<'a> Parser<'a> {
     // 解析表达式
