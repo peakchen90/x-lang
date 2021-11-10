@@ -92,6 +92,7 @@ impl Formatter {
             Node::ReturnStatement { argument } => {
                 code.push_str("return");
                 if let Some(v) = argument {
+                    code.push_str(" ");
                     code.push_str(&self.format_node(v.deref()))
                 }
                 code.push_str(";\n");
