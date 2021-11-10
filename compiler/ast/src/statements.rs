@@ -28,7 +28,7 @@ impl<'a> Parser<'a> {
                     }
                     b"loop" => {
                         omit_tailing_semi = true;
-                        self.parse_loop_statement()
+                        self.parse_loop_statement(None)
                     }
                     b"break" => self.parse_break_statement(),
                     b"continue" => self.parse_continue_statement(),
@@ -36,8 +36,25 @@ impl<'a> Parser<'a> {
                 }
             }
             TokenType::Identifier | TokenType::Number | TokenType::ParenL => {
-                let expression = Box::new(self.parse_expression().unwrap());
-                Node::ExpressionStatement { expression }
+                // 可能是 label
+                let maybe_label = self.current_token.value.to_string();
+                self.skip_space();
+                self.skip_comment();
+                if self.current_char == ':' {
+                    self.next_token();
+                    self.consume_or_panic(TokenType::Colon);
+                    self.expect(TokenType::Keyword);
+                    match self.current_token.value.as_bytes() {
+                        b"loop" => {
+                            omit_tailing_semi = true;
+                            self.parse_loop_statement(Some(maybe_label))
+                        }
+                        _ => self.unexpected(),
+                    }
+                } else {
+                    let expression = Box::new(self.parse_expression().unwrap());
+                    Node::ExpressionStatement { expression }
+                }
             }
             TokenType::BraceL => {
                 omit_tailing_semi = true;
@@ -220,17 +237,45 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 loop 循环语句
-    pub fn parse_loop_statement(&mut self) -> Node {
-        Node::NumberLiteral { value: 0.3 }
+    pub fn parse_loop_statement(&mut self, label: Option<String>) -> Node {
+        self.current_loop_level += 1;
+
+        self.next_token();
+        let body = Box::new(self.parse_block_statement());
+
+        self.current_loop_level -= 1;
+        Node::LoopStatement { label, body }
     }
 
     // 解析 break 语句
     pub fn parse_break_statement(&mut self) -> Node {
-        Node::NumberLiteral { value: 0.3 }
+        if self.current_loop_level == 0 {
+            panic!("The `break` can only be use in loop statements")
+        }
+
+        self.next_token();
+        let label = if self.is_token(TokenType::Identifier) {
+            let label = Some(self.current_token.value.to_string());
+            self.next_token();
+            label
+        } else {
+            None
+        };
+        Node::BreakStatement { label }
     }
 
     // 解析 continue 语句
     pub fn parse_continue_statement(&mut self) -> Node {
-        Node::NumberLiteral { value: 0.3 }
+        if self.current_loop_level == 0 {
+            panic!("The `continue` can only be use in loop statements")
+        }
+
+        self.next_token();
+        let label = if self.is_token(TokenType::Identifier) {
+            Some(self.current_token.value.to_string())
+        } else {
+            None
+        };
+        Node::ContinueStatement { label }
     }
 }

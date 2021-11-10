@@ -3,13 +3,13 @@ use crate::build_in::{
 };
 use crate::compiler::Compiler;
 use crate::scope::ScopeType;
+use inkwell::basic_block::BasicBlock;
 use inkwell::comdat::ComdatSelectionKind;
 use inkwell::context::Context;
 use inkwell::types::*;
 use inkwell::values::*;
 use std::env::args;
 use std::ops::Deref;
-use inkwell::basic_block::BasicBlock;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::{Kind, KindName};
 use x_lang_ast::visitor::Visitor;
@@ -17,6 +17,49 @@ use x_lang_ast::visitor::Visitor;
 // 永从不会发生，用于避免编译器报错
 pub fn never() -> ! {
     panic!("NEVER")
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum Terminator {
+    None,
+    Return,
+    Break,
+}
+
+impl Terminator {
+    pub fn is_terminated(&self) -> bool {
+        match self {
+            Terminator::None => false,
+            Terminator::Return => true,
+            Terminator::Break => true,
+        }
+    }
+
+    pub fn is_return(&self) -> bool {
+        match self {
+            Terminator::Return => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_break(&self) -> bool {
+        match self {
+            Terminator::Break => true,
+            _ => false,
+        }
+    }
+
+    pub fn merge(&self, other: Terminator) -> Terminator {
+        if self.is_terminated() {
+            if self.is_return() {
+                self.clone()
+            } else {
+                other
+            }
+        } else {
+            other
+        }
+    }
 }
 
 impl<'a, 'ctx> Compiler<'a, 'ctx> {

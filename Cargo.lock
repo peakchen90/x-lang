@@ -321,6 +321,7 @@ dependencies = [
  "tiny-json",
  "x-lang-ast",
  "x-lang-codegen",
+ "x-lang-format-tool",
 ]
 
 [[package]]
@@ -338,3 +339,7 @@ dependencies = [
  "inkwell",
  "x-lang-ast",
 ]
+
+[[package]]
+name = "x-lang-format-tool"
+version = "0.1.0"

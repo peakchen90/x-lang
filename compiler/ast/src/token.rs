@@ -1,13 +1,15 @@
 use crate::shared::is_keyword_str;
 use crate::state::Parser;
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenType {
+    Begin,
+    EOF,
     Keyword,
     Identifier,
     Number,
     Boolean,
-    EOF,
     Assign,    // =
     Plus,      // +
     Sub,       // -

@@ -32,14 +32,14 @@ pub enum Node {
         alternate: Option<Box<Node>>,
     },
     LoopStatement {
-        condition: Box<Node>,
+        label: Option<String>,
         body: Box<Node>,
     },
     BreakStatement {
-        label: Option<Box<Node>>
+        label: Option<String>
     },
     ContinueStatement {
-        label: Option<Box<Node>>
+        label: Option<String>
     },
 
     // expressions

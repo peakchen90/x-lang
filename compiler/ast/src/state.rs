@@ -13,6 +13,7 @@ pub struct Parser<'a> {
     pub allow_expr: bool,           // 当前上下文是否允许表达式
     pub allow_return: bool,         // 当前上下文是否允许 return 语句
     pub current_block_level: usize, // 当前进入到第几层块级作用域
+    pub current_loop_level: usize,  // 当前进入到第几层循环块
     pub node: Option<Node>,         // 解析的 ast
 }
 
@@ -26,13 +27,14 @@ impl<'a> Parser<'a> {
             is_seen_newline: false,
             current_char: ' ',
             current_token: Token {
-                token_type: TokenType::EOF,
+                token_type: TokenType::Begin,
                 value: String::new(),
                 precedence: -1,
             },
             allow_expr: true,
             allow_return: false,
             current_block_level: 0,
+            current_loop_level: 0,
             node: None,
         };
         parser.node = Some(parser.parse());
@@ -52,7 +54,7 @@ impl<'a> Parser<'a> {
 
     // 检查光标是否超过最大值
     pub fn check_valid_index(&self) -> bool {
-        self.index < self.chars.len()
+        !self.is_token(TokenType::EOF)
     }
 
     // 向后查看 n 个字符（不移动光标）

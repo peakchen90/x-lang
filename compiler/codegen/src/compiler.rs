@@ -1,5 +1,5 @@
-use crate::helper::never;
-use crate::scope::BlockScope;
+use crate::helper::{never, Terminator};
+use crate::scope::{BlockScope, Label, Labels};
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::execution_engine::*;
@@ -19,6 +19,7 @@ pub struct Compiler<'a, 'ctx> {
     pub builder: &'a Builder<'ctx>,
     pub module: &'a Module<'ctx>,
     pub scope: &'a mut BlockScope<'ctx>,
+    pub labels: &'a mut Labels<'ctx>,
     pub execution_engine: &'a ExecutionEngine<'ctx>,
     pub print_fns: HashMap<&'a str, FunctionValue<'ctx>>,
     pub main_fn: Option<FunctionValue<'ctx>>,
@@ -32,6 +33,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let module = &context.create_module("main");
         let builder = &context.create_builder();
         let scope = &mut BlockScope::new();
+        let labels = &mut Labels::new();
         let execution_engine = &module
             .create_jit_execution_engine(OptimizationLevel::None)
             .unwrap();
@@ -41,6 +43,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             module,
             builder,
             scope,
+            labels,
             execution_engine,
             main_fn: None,
             current_fn: None,
@@ -101,8 +104,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         };
     }
 
-    // 编译一条语句，返回在语句中间是否执行了 return 语句
-    pub fn compile_statement(&mut self, node: &Node) -> bool {
+    // 编译一条语句，返回语句中是否被终结了
+    pub fn compile_statement(&mut self, node: &Node) -> Terminator {
         match node {
             Node::FunctionDeclaration {
                 id,
@@ -128,26 +131,36 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     _ => never(),
                 };
                 self.compile_function(name, &args, arguments, body, return_kind, false);
-                false
+                Terminator::None
             }
             Node::VariableDeclaration { id, init } => {
                 self.compile_variable_statement(id.deref(), init.deref());
-                false
+                Terminator::None
             }
             Node::BlockStatement { body } => self.compile_block_statement(body, true),
             Node::ReturnStatement { argument } => {
                 self.compile_return_statement(argument);
-                true
+                Terminator::Return
             }
             Node::ExpressionStatement { expression } => {
                 self.compile_expression(expression.deref());
-                false
+                Terminator::None
             }
             Node::IfStatement {
                 condition,
                 consequent,
                 alternate,
             } => self.compile_if_statement(condition, consequent, alternate),
+            Node::LoopStatement { label, body } => {
+                self.compile_loop_statement(label, body.deref())
+            }
+            Node::BreakStatement { label } => {
+                self.compile_break_statement(label);
+                Terminator::Break
+            }
+            Node::ContinueStatement { label } => {
+                panic!("No implement"); // TODO
+            }
             _ => never(),
         }
     }
@@ -195,8 +208,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         }
 
         // 编译函数体
-        let is_returned = self.compile_block_statement(body, false);
-        if !is_returned {
+        let terminator = self.compile_block_statement(body, false);
+        if !terminator.is_return() {
             self.builder.build_return(None);
         }
 
@@ -221,42 +234,41 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         &mut self,
         statements: &Vec<Box<Node>>,
         is_new_scope: bool,
-    ) -> bool {
-        let mut continue_block = None;
+    ) -> Terminator {
+        let mut after_block = None;
         if is_new_scope {
             let fn_value = self.current_fn.unwrap();
             let basic_block = self.context.append_basic_block(fn_value, "block");
-            continue_block =
-                Some(self.context.append_basic_block(fn_value, "block_continue"));
+            after_block = Some(self.context.append_basic_block(fn_value, "after_block"));
             self.builder.build_unconditional_branch(basic_block); // 切换到块
 
             // 作用域入栈
             self.push_block_scope(basic_block);
         }
 
-        let mut is_returned = false;
+        let mut terminator = Terminator::None;
         for stat in statements.iter() {
-            is_returned = self.compile_statement(stat.deref());
-            if is_returned {
+            terminator = self.compile_statement(stat.deref());
+            if terminator.is_terminated() {
                 break;
             }
         }
 
         if is_new_scope {
-            let continue_block = continue_block.unwrap();
-            if !is_returned {
-                self.builder.build_unconditional_branch(continue_block); // 切换到块后续
+            let after_block = after_block.unwrap();
+            if terminator.is_terminated() {
+                self.builder.build_unconditional_branch(after_block); // 切换到块后续
             } else {
                 unsafe {
-                    continue_block.delete();
+                    after_block.delete();
                 }
             }
             self.pop_block_scope();
 
             // 设置块后续为最后的位置，以便于继续编译下面的代码
-            self.builder.position_at_end(continue_block);
+            self.builder.position_at_end(after_block);
         }
-        is_returned
+        terminator
     }
 
     // 编译 if 语句
@@ -265,7 +277,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         condition: &Node,
         consequent: &Node,
         alternate: &Option<Box<Node>>,
-    ) -> bool {
+    ) -> Terminator {
         let condition_value = self.compile_expression(condition.deref()).into_int_value();
         let infer_condition_kind = self.infer_expression_kind(condition.deref());
         if *infer_condition_kind.read_kind_name().unwrap() != KindName::Boolean {
@@ -275,7 +287,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         let fn_value = self.current_fn.unwrap();
         let then_block = self.context.append_basic_block(fn_value, "then");
         let else_block = self.context.append_basic_block(fn_value, "else");
-        let if_continue_block = self.context.append_basic_block(fn_value, "if_continue");
+        let if_after_block = self.context.append_basic_block(fn_value, "if_after");
 
         // build condition branch
         self.builder
@@ -283,15 +295,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // build then block
         self.push_block_scope(then_block);
-        let mut is_then_returned =
+        let mut then_terminator =
             self.compile_block_statement(consequent.read_block_body(), false);
-        if !is_then_returned {
-            self.builder.build_unconditional_branch(if_continue_block);
+        if !then_terminator.is_terminated() {
+            self.builder.build_unconditional_branch(if_after_block);
         }
         self.pop_block_scope();
 
         // build else block
-        let mut is_else_returned = false;
+        let mut else_terminator = Terminator::None;
         self.push_block_scope(else_block);
         if alternate.is_some() {
             match alternate.as_ref().unwrap().deref() {
@@ -301,7 +313,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                     consequent,
                     alternate,
                 } => {
-                    is_else_returned = self.compile_if_statement(
+                    else_terminator = self.compile_if_statement(
                         condition.deref(),
                         consequent.deref(),
                         alternate,
@@ -309,27 +321,82 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
                 // else
                 Node::BlockStatement { body } => {
-                    is_else_returned = self.compile_block_statement(body, false);
+                    else_terminator = self.compile_block_statement(body, false);
                 }
                 _ => never(),
             }
         }
-        if !is_else_returned {
-            self.builder.build_unconditional_branch(if_continue_block);
+        if else_terminator.is_terminated() {
+            self.builder.build_unconditional_branch(if_after_block);
         }
         self.pop_block_scope();
 
         // 继续构建 if 语句之后的逻辑
-        self.builder.position_at_end(if_continue_block);
+        self.builder.position_at_end(if_after_block);
 
         // 如果 if / else 都return了，下方的代码直接不用执行了
-        if is_then_returned && is_else_returned {
+        if then_terminator.is_terminated() && else_terminator.is_terminated() {
             unsafe {
-                if_continue_block.delete();
+                if_after_block.delete();
             }
-            return true;
+            return then_terminator.merge(else_terminator);
         }
-        false
+        Terminator::None
+    }
+
+    pub fn compile_loop_statement(
+        &mut self,
+        label: &Option<String>,
+        body: &Node,
+    ) -> Terminator {
+        let label_name = match label {
+            None => "",
+            Some(v) => v,
+        };
+        let fn_value = self.current_fn.unwrap();
+        let loop_block = self.context.append_basic_block(fn_value, "loop");
+        let loop_then_block = self.context.append_basic_block(fn_value, "loop_then");
+        let loop_after_block = self.context.append_basic_block(fn_value, "loop_after");
+
+        // 切换到循环块判断条件
+        let condition_ptr = self
+            .builder
+            .build_alloca(self.build_bool_type(), "loop_condition");
+        self.builder
+            .build_store(condition_ptr, self.build_bool_value(true));
+        self.builder.build_unconditional_branch(loop_block);
+
+        self.builder.position_at_end(loop_block);
+        self.builder.build_conditional_branch(
+            self.builder
+                .build_load(condition_ptr, "do_loop")
+                .into_int_value(),
+            loop_then_block,
+            loop_after_block,
+        );
+
+        // 块作用域入栈
+        self.push_block_scope(loop_then_block);
+        self.labels.current_loop_ptr = Some(condition_ptr);
+        self.labels
+            .push(label.clone(), condition_ptr, loop_block, loop_after_block);
+
+        // 编译循环块
+        let terminator = self.compile_block_statement(body.read_block_body(), false);
+
+        if !terminator.is_terminated() {
+            // 循环块结束后重新开始循环
+            self.builder.build_unconditional_branch(loop_block);
+        } else {
+            self.builder.build_unconditional_branch(loop_after_block);
+        }
+        self.pop_block_scope();
+        self.labels.pop();
+
+        // 继续编译循环块下面的代码
+        self.builder.position_at_end(loop_after_block);
+
+        terminator
     }
 
     pub fn compile_return_statement(&mut self, argument: &Option<Box<Node>>) {
@@ -340,6 +407,31 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             }
             None => {
                 self.builder.build_return(None);
+            }
+        };
+    }
+
+    pub fn compile_break_statement(&mut self, label: &Option<String>) {
+        match label {
+            Some(label_mame) => {
+                let parent_labels = self.labels.get_after_all(label_mame);
+                match parent_labels {
+                    None => panic!("Label `{}` is not found", label_mame),
+                    Some(v) => {
+                        for item in v.iter() {
+                            self.builder.build_store(
+                                item.condition_ptr,
+                                self.build_bool_value(false),
+                            );
+                        }
+                    }
+                }
+            }
+            None => {
+                self.builder.build_store(
+                    self.labels.current_loop_ptr.unwrap(),
+                    self.build_bool_value(false),
+                );
             }
         };
     }
