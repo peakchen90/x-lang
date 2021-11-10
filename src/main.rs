@@ -17,11 +17,11 @@ fn ast_test() {
     fs::write(".ast.json", format_json_str).unwrap();
     println!("Success: write ast at: .ast.json");
 
-    compile(&node, true);
-
     // format code
     let format_code = format(&str);
     fs::write("test.x", format_code);
+
+    compile(&node, true);
 }
 
 fn main() {

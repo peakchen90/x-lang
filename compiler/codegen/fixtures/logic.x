@@ -28,6 +28,7 @@ fn b(a: bool) -> num {
     } else {
         return 3;
     }
+    print();
 }
 
 b(true);

@@ -388,7 +388,20 @@ impl<'ctx> Compiler<'ctx> {
         if !terminator.is_terminated() {
             // 循环块结束后重新开始循环
             self.builder.build_unconditional_branch(loop_block);
+        } else if terminator.is_break() {
+            // 这里应该要跳转到 break label 的那个 after_block，不一定是当前的
+            match &self.labels.last_break_label {
+                Some(v) => {
+                    self.builder.build_unconditional_branch(v.after_block);
+                }
+                None => {
+                    self.builder.build_unconditional_branch(loop_after_block);
+                }
+            }
         } else {
+            // 循环中间被 return
+            // TODO: 这里强制给 loop_after 块加了跳转到自身，只是为了避免报错，后续再解决这个问题，这里永远不会执行
+            self.builder.position_at_end(loop_after_block);
             self.builder.build_unconditional_branch(loop_after_block);
         }
         self.pop_block_scope();
@@ -420,26 +433,22 @@ impl<'ctx> Compiler<'ctx> {
     pub fn compile_break_statement(&mut self, label: &Option<String>) {
         match label {
             Some(label_mame) => {
-                let parent_labels = self.labels.get_after_all(label_mame);
-                match parent_labels {
-                    None => panic!("Label `{}` is not found", label_mame),
-                    Some(v) => {
-                        for item in v.iter() {
-                            self.builder.build_store(
-                                item.condition_ptr,
-                                self.build_bool_value(false),
-                            );
-                            // TODO: 待处理
-                            // item.is_break = true;
-                        }
-                    }
+                let label = self
+                    .labels
+                    .get(label_mame)
+                    .expect(&format!("Label `{}` is not found", label_mame));
+                self.labels.last_break_label = Some(label.clone());
+                let parent_labels = self.labels.get_after_all(label_mame).unwrap();
+                for item in parent_labels.iter() {
+                    self.builder
+                        .build_store(item.condition_ptr, self.build_bool_value(false));
                 }
             }
             None => {
-                let mut current = self.labels.current().unwrap();
+                let current = self.labels.current().unwrap();
                 self.builder
                     .build_store(current.condition_ptr, self.build_bool_value(false));
-                // self.labels.mark_break(current);
+                self.labels.last_break_label = Some(current.clone());
             }
         };
     }

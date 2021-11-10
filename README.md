@@ -58,3 +58,6 @@ print(result);
 - https://crates.io/crates/llvm-sys
 - https://crates.io/crates/llvm-ir
 - https://github.com/TheDan64/inkwell
+
+## 已知问题
+- 函数返回类型与定义不匹配时未校验

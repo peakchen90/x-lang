@@ -12,8 +12,19 @@ fn b() {
            break a;
         }
 
-        print(); // TODO: 这里有问题，不应该被执行
+        print(1);
     }
 }
 
 b();
+
+fn c() {
+    a: loop {
+        b: loop {
+           return;
+        }
+        print(1);
+    }
+}
+
+c();
