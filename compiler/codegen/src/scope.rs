@@ -157,12 +157,13 @@ impl<'ctx> BlockScope<'ctx> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Label<'ctx> {
     pub name: Option<String>,
     pub condition_ptr: PointerValue<'ctx>,
     pub loop_block: BasicBlock<'ctx>,
     pub after_block: BasicBlock<'ctx>,
+    pub is_break: bool,
 }
 
 impl<'ctx> Label<'ctx> {
@@ -172,11 +173,14 @@ impl<'ctx> Label<'ctx> {
             None => String::new(),
         }
     }
+
+    pub fn mark_break(&mut self) {
+        self.is_break = true;
+    }
 }
 
 #[derive(Debug)]
 pub struct Labels<'ctx> {
-    pub current_loop_ptr: Option<PointerValue<'ctx>>,
     label_chains: Vec<Label<'ctx>>,
 }
 
@@ -184,7 +188,6 @@ impl<'ctx> Labels<'ctx> {
     pub fn new() -> Self {
         Labels {
             label_chains: vec![],
-            current_loop_ptr: None,
         }
     }
 
@@ -208,6 +211,7 @@ impl<'ctx> Labels<'ctx> {
             condition_ptr,
             loop_block,
             after_block,
+            is_break: false,
         });
     }
 
@@ -228,7 +232,23 @@ impl<'ctx> Labels<'ctx> {
         None
     }
 
-    pub fn get_after_all(&self, name: &str, ) -> Option<Vec<&Label<'ctx>>> {
+    pub fn current(&mut self) -> Option<&mut Label<'ctx>> {
+        self.label_chains.last_mut()
+    }
+
+    pub fn mark_break(&mut self, label: &Label<'ctx>) {
+        let mut is_find = false;
+        for i in self.label_chains.iter_mut() {
+            if i == label {
+                is_find = true;
+            }
+            if is_find {
+                i.mark_break()
+            }
+        }
+    }
+
+    pub fn get_after_all(&self, name: &str) -> Option<Vec<&Label<'ctx>>> {
         let mut res = vec![];
         let mut is_find = false;
         for i in self.label_chains.iter() {

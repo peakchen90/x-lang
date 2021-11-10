@@ -14,27 +14,27 @@ use std::path::Path;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::{Kind, KindName};
 
-pub struct Compiler<'a, 'ctx> {
+pub struct Compiler<'ctx> {
     pub context: &'ctx Context,
-    pub builder: &'a Builder<'ctx>,
-    pub module: &'a Module<'ctx>,
-    pub scope: &'a mut BlockScope<'ctx>,
-    pub labels: &'a mut Labels<'ctx>,
-    pub execution_engine: &'a ExecutionEngine<'ctx>,
-    pub print_fns: HashMap<&'a str, FunctionValue<'ctx>>,
+    pub builder: Builder<'ctx>,
+    pub module: Module<'ctx>,
+    pub scope: BlockScope<'ctx>,
+    pub labels: Labels<'ctx>,
+    pub execution_engine: ExecutionEngine<'ctx>,
+    pub print_fns: HashMap<&'static str, FunctionValue<'ctx>>,
     pub main_fn: Option<FunctionValue<'ctx>>,
     pub current_fn: Option<FunctionValue<'ctx>>,
     pub is_debug: bool,
 }
 
-impl<'a, 'ctx> Compiler<'a, 'ctx> {
+impl<'ctx> Compiler<'ctx> {
     pub fn compile(ast: &Node, is_debug: bool) {
         let context = &Context::create();
-        let module = &context.create_module("main");
-        let builder = &context.create_builder();
-        let scope = &mut BlockScope::new();
-        let labels = &mut Labels::new();
-        let execution_engine = &module
+        let module = context.create_module("main");
+        let builder = context.create_builder();
+        let scope = BlockScope::new();
+        let labels = Labels::new();
+        let execution_engine = module
             .create_jit_execution_engine(OptimizationLevel::None)
             .unwrap();
 
@@ -58,13 +58,15 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         if is_debug {
             // 控制台打印 IR 码
             println!("\n================================ LLVM-IR ================================");
-            module.print_to_stderr();
+            compiler.module.print_to_stderr();
 
             println!("\n================================ OUTPUT =================================");
         }
 
         unsafe {
-            execution_engine.run_function(compiler.main_fn.unwrap(), &vec![]);
+            compiler
+                .execution_engine
+                .run_function(compiler.main_fn.unwrap(), &vec![]);
         }
 
         // Target::initialize_all(&InitializationConfig::default());
@@ -377,7 +379,6 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
         // 块作用域入栈
         self.push_block_scope(loop_then_block);
-        self.labels.current_loop_ptr = Some(condition_ptr);
         self.labels
             .push(label.clone(), condition_ptr, loop_block, loop_after_block);
 
@@ -396,7 +397,12 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         // 继续编译循环块下面的代码
         self.builder.position_at_end(loop_after_block);
 
-        terminator
+        // 循环中只有 return 才透传结束者
+        if terminator.is_return() {
+            terminator
+        } else {
+            Terminator::None
+        }
     }
 
     pub fn compile_return_statement(&mut self, argument: &Option<Box<Node>>) {
@@ -423,15 +429,17 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                 item.condition_ptr,
                                 self.build_bool_value(false),
                             );
+                            // TODO: 待处理
+                            // item.is_break = true;
                         }
                     }
                 }
             }
             None => {
-                self.builder.build_store(
-                    self.labels.current_loop_ptr.unwrap(),
-                    self.build_bool_value(false),
-                );
+                let mut current = self.labels.current().unwrap();
+                self.builder
+                    .build_store(current.condition_ptr, self.build_bool_value(false));
+                // self.labels.mark_break(current);
             }
         };
     }

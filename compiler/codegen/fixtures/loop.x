@@ -11,6 +11,8 @@ fn b() {
         b: loop {
            break a;
         }
+
+        print(); // TODO: 这里有问题，不应该被执行
     }
 }
 

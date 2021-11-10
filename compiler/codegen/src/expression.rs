@@ -5,7 +5,7 @@ use std::ops::Deref;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::Kind;
 
-impl<'a, 'ctx> Compiler<'a, 'ctx> {
+impl<'ctx> Compiler<'ctx> {
     pub fn compile_expression(&self, node: &Node) -> BasicValueEnum<'ctx> {
         match node {
             Node::CallExpression { callee, arguments } => {

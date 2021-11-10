@@ -62,7 +62,7 @@ impl Terminator {
     }
 }
 
-impl<'a, 'ctx> Compiler<'a, 'ctx> {
+impl<'ctx> Compiler<'ctx> {
     pub fn build_number_type(&self) -> FloatType<'ctx> {
         self.context.f64_type()
     }
@@ -323,7 +323,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
     fn bind_system_print_fn(
         &mut self,
-        type_name: &'a str,
+        type_name: &'static str,
         arg_type: Option<BasicMetadataTypeEnum<'ctx>>,
         address: usize,
     ) {
