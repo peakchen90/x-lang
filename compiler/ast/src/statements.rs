@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
         self.consume_or_panic(TokenType::ParenR);
 
         // maybe return kind
-        let mut return_kind = KindName::Void.into();
+        let mut return_kind = Kind::None;
         if self.consume(TokenType::ReturnSym) {
             let kind_str = self.current_token.value.to_string();
             return_kind = KindName::from(&kind_str, true).into();

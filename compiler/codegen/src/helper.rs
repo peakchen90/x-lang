@@ -90,7 +90,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
         return_kind: &Kind,
         args: &[BasicMetadataTypeEnum<'ctx>],
     ) -> FunctionType<'ctx> {
-        match return_kind.read_kind_name().unwrap() {
+        match return_kind.read_return_kind_name() {
             KindName::Number => self.build_number_type().fn_type(args, false),
             KindName::Boolean => self.build_bool_type().fn_type(args, false),
             KindName::Void => self.build_void_type().fn_type(args, false),

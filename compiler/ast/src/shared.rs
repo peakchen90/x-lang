@@ -1,7 +1,6 @@
 // 关键字
 const KEYWORDS: [&str; 10] = [
-    "fn", "var", "return", "true", "false", "if", "else", "loop", "break",
-    "continue",
+    "fn", "var", "return", "true", "false", "if", "else", "loop", "break", "continue",
 ];
 
 fn array_index_of_str(arr: &[&str], value: &str) -> isize {
@@ -84,6 +83,14 @@ impl Kind {
             Some(v)
         } else {
             None
+        }
+    }
+
+    pub fn read_return_kind_name(&self) -> &KindName {
+        match self {
+            Kind::Some(v) => v,
+            Kind::Infer => panic!("Return type can not be infer type"),
+            Kind::None => &KindName::Void,
         }
     }
 

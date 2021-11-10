@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
     }
 
     // 开始解析
-    pub fn parse(&mut self) -> Node {
+    fn parse(&mut self) -> Node {
         let mut body: Vec<Box<Node>> = vec![];
         self.next_token();
         while self.check_valid_index() {

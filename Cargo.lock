@@ -343,3 +343,6 @@ dependencies = [
 [[package]]
 name = "x-lang-format-tool"
 version = "0.1.0"
+dependencies = [
+ "x-lang-ast",
+]

@@ -326,7 +326,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 _ => never(),
             }
         }
-        if else_terminator.is_terminated() {
+        if !else_terminator.is_terminated() {
             self.builder.build_unconditional_branch(if_after_block);
         }
         self.pop_block_scope();

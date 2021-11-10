@@ -4,6 +4,7 @@ use std::fs;
 use std::process::Command;
 use x_lang_ast::state::Parser;
 use x_lang_codegen::compile;
+use x_lang_format_tool::format;
 
 fn ast_test() {
     let str = fs::read_to_string("test.x").unwrap();
@@ -17,6 +18,10 @@ fn ast_test() {
     println!("Success: write ast at: .ast.json");
 
     compile(&node, true);
+
+    // format code
+    let format_code = format(&str);
+    fs::write("test.x", format_code);
 }
 
 fn main() {
