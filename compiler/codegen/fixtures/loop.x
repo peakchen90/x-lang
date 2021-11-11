@@ -31,3 +31,22 @@ fn c() {
     }
 }
 c();
+
+fn d() {
+    var i = 1;
+    a: loop {
+        print(i);
+        loop {
+            print(true, i);
+            if (i == 10) {
+                break;
+            }
+            i = i + 1;
+        }
+        if (i == 20) {
+            break;
+        }
+        i = i + 1;
+    }
+}
+//d();

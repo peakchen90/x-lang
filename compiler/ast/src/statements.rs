@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
                     _ => self.unexpected(),
                 }
             }
-            TokenType::Identifier | TokenType::Number | TokenType::ParenL => {
+            TokenType::Identifier => {
                 // 可能是 label
                 let maybe_label = self.current_token.value.to_string();
                 self.skip_space();
@@ -55,6 +55,10 @@ impl<'a> Parser<'a> {
                     let expression = Box::new(self.parse_expression().unwrap());
                     Node::ExpressionStatement { expression }
                 }
+            }
+            TokenType::Number | TokenType::ParenL => {
+                let expression = Box::new(self.parse_expression().unwrap());
+                Node::ExpressionStatement { expression }
             }
             TokenType::BraceL => {
                 omit_tailing_semi = true;

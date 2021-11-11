@@ -295,7 +295,13 @@ impl<'ctx> Compiler<'ctx> {
         let mut then_terminator =
             self.compile_block_statement(consequent.read_block_body(), false);
         if !then_terminator.is_return() {
-            self.builder.build_unconditional_branch(if_after_block);
+            if then_terminator.is_break() {
+                if let Some(v) = &self.labels.last_break_label {
+                    self.builder.build_unconditional_branch(v.after_block);
+                }
+            } else {
+                self.builder.build_unconditional_branch(if_after_block);
+            }
         }
         self.pop_block_scope();
 

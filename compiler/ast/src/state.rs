@@ -79,6 +79,11 @@ impl<'a> Parser<'a> {
             self.current_char = self.chars[self.index];
         } else {
             self.current_char = 0 as char;
+            self.current_token = Token {
+                token_type: TokenType::EOF,
+                value: String::new(),
+                precedence: -1,
+            }
         }
     }
 
