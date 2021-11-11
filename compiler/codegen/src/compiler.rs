@@ -253,7 +253,7 @@ impl<'ctx> Compiler<'ctx> {
 
         if is_new_scope {
             let after_block = after_block.unwrap();
-            if terminator.is_terminated() {
+            if terminator.is_break() {
                 self.builder.build_unconditional_branch(after_block); // 切换到块后续
             } else {
                 unsafe {
