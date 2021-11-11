@@ -56,11 +56,25 @@ impl KindName {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Copy, Clone)]
+#[derive(Debug, Eq, Serialize, Copy, Clone)]
 pub enum Kind {
     Some(KindName),
     Infer, // 推断的类型
     None,  // 无类型 或者 void
+}
+
+impl PartialEq for Kind {
+    fn eq(&self, other: &Self) -> bool {
+        if self.is_exact() && other.is_exact() {
+            self.read_kind_name() == other.read_kind_name()
+        } else {
+            false
+        }
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
 }
 
 impl Kind {

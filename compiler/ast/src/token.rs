@@ -3,8 +3,8 @@ use crate::state::Parser;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenType {
-    Begin,
-    EOF,
+    Begin, // 初始Token
+    EOF,   // 结束 Token
     Keyword,
     Identifier,
     Number,
@@ -14,6 +14,20 @@ pub enum TokenType {
     Sub,       // -
     Mul,       // *
     Div,       // /
+    REM,       // %
+    LT,        // <
+    LE,        // <=
+    GT,        // >
+    GE,        // >=
+    EQ,        // ==
+    NE,        // !=
+    LogicAnd,  // &&
+    LogicOr,   // ||
+    LogicNot,  // !
+    BitAnd,    // &
+    BitOr,     // |
+    BitNot,    // ~
+    BitXor,    // ^
     ParenL,    // (
     ParenR,    // )
     BraceL,    // {
@@ -78,11 +92,16 @@ impl<'a> Parser<'a> {
             '0'..='9' => self.read_number(),
             '=' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::Assign, "=", 1)
+                if self.current_char == '=' {
+                    self.move_index(1);
+                    Token::create_op(self, TokenType::EQ, "==", 11)
+                } else {
+                    Token::create_op(self, TokenType::Assign, "=", 1)
+                }
             }
             '+' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::Plus, "+", 13)
+                Token::create_op(self, TokenType::Plus, "+", 14)
             }
             '-' => {
                 let next_char = self.look_behind(1);
@@ -93,16 +112,73 @@ impl<'a> Parser<'a> {
                     self.read_number()
                 } else {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::Sub, "-", 13)
+                    Token::create_op(self, TokenType::Sub, "-", 14)
                 }
             }
             '*' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::Mul, "*", 14)
+                Token::create_op(self, TokenType::Mul, "*", 15)
             }
             '/' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::Div, "/", 14)
+                Token::create_op(self, TokenType::Div, "/", 15)
+            }
+            '%' => {
+                self.move_index(1);
+                Token::create_op(self, TokenType::REM, "%", 15)
+            }
+            '<' => {
+                self.move_index(1);
+                if self.current_char == '=' {
+                    self.move_index(1);
+                    Token::create_op(self, TokenType::LE, "<=", 12)
+                } else {
+                    Token::create_op(self, TokenType::LT, "<", 12)
+                }
+            }
+            '>' => {
+                self.move_index(1);
+                if self.current_char == '=' {
+                    self.move_index(1);
+                    Token::create_op(self, TokenType::GE, ">=", 12)
+                } else {
+                    Token::create_op(self, TokenType::GT, ">", 12)
+                }
+            }
+            '&' => {
+                self.move_index(1);
+                if self.current_char == '&' {
+                    self.move_index(1);
+                    Token::create_op(self, TokenType::LogicAnd, "&&", 7)
+                } else {
+                    Token::create_op(self, TokenType::BitAnd, "&", 10)
+                }
+            }
+            '|' => {
+                self.move_index(1);
+                if self.current_char == '|' {
+                    self.move_index(1);
+                    Token::create_op(self, TokenType::LogicOr, "||", 6)
+                } else {
+                    Token::create_op(self, TokenType::BitAnd, "|", 8)
+                }
+            }
+            '!' => {
+                self.move_index(1);
+                if self.current_char == '=' {
+                    self.move_index(1);
+                    Token::create_op(self, TokenType::NE, "!=", 11)
+                } else {
+                    Token::create_op(self, TokenType::LogicNot, "!", 17)
+                }
+            }
+            '~' => {
+                self.move_index(1);
+                Token::create_op(self, TokenType::BitNot, "~", 17)
+            }
+            '^' => {
+                self.move_index(1);
+                Token::create_op(self, TokenType::BitNot, "^", 9)
             }
             '(' => {
                 self.move_index(1);

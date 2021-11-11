@@ -255,8 +255,37 @@ impl<'ctx> Compiler<'ctx> {
                     _ => panic!("Function `{}` is not found", name),
                 }
             }
-            Node::BinaryExpression { left, .. } => {
-                ret_kind = self.infer_expression_kind(left.deref());
+            Node::BinaryExpression {
+                left,
+                right,
+                operator,
+            } => {
+                let left_kind = self.infer_expression_kind(left.deref());
+                let right_kind = self.infer_expression_kind(right.deref());
+                if left_kind != right_kind {
+                    panic!("Types of binary expressions are inconsistent");
+                }
+
+                let kind_name = *left_kind.read_kind_name().unwrap();
+                if kind_name == KindName::Number {
+                    match operator.as_bytes() {
+                        b"<" | b"<=" | b">" | b">=" | b"==" | b"!=" => {
+                            ret_kind = Kind::create("bool")
+                        }
+                        b"+" | b"-" | b"*" | b"/" | b"%" | b"&" | b"|" | b"^" => {
+                            ret_kind = Kind::create("num")
+                        }
+                        _ => panic!("Invalid binary expression"),
+                    }
+                } else if kind_name == KindName::Boolean {
+                    match operator.as_bytes() {
+                        b"==" | b"!=" | b"&&" | b"||" => ret_kind = Kind::create("bool"),
+                        _ => panic!("Invalid binary expression"),
+                    }
+                } else {
+                    panic!("Invalid binary expression")
+                }
+
                 visitor.stop();
             }
             Node::AssignmentExpression { left, .. } => {

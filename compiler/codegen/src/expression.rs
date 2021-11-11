@@ -1,9 +1,10 @@
 use crate::compiler::Compiler;
 use crate::helper::never;
 use inkwell::values::*;
+use inkwell::{AtomicRMWBinOp, FloatPredicate, IntPredicate};
 use std::ops::Deref;
 use x_lang_ast::node::Node;
-use x_lang_ast::shared::Kind;
+use x_lang_ast::shared::{Kind, KindName};
 
 impl<'ctx> Compiler<'ctx> {
     pub fn compile_expression(&self, node: &Node) -> BasicValueEnum<'ctx> {
@@ -16,9 +17,22 @@ impl<'ctx> Compiler<'ctx> {
                 right,
                 operator,
             } => {
+                let left_kind = self.infer_expression_kind(left.deref());
+                let right_kind = self.infer_expression_kind(right.deref());
+                if left_kind != right_kind {
+                    panic!("Types of binary expressions are inconsistent");
+                }
+
+                let kind_name = *left_kind.read_kind_name().unwrap();
                 let left = self.compile_expression(left.deref());
                 let right = self.compile_expression(right.deref());
-                self.compile_binary_expression(&left, &right, operator)
+                if kind_name == KindName::Number {
+                    self.compile_num_binary_expression(&left, &right, operator)
+                } else if kind_name == KindName::Boolean {
+                    self.compile_bool_binary_expression(&left, &right, operator)
+                } else {
+                    panic!("Invalid binary expression")
+                }
             }
             Node::AssignmentExpression {
                 left,
@@ -93,7 +107,8 @@ impl<'ctx> Compiler<'ctx> {
         self.build_call_fn(fn_value, args, name)
     }
 
-    pub fn compile_binary_expression(
+    // 编译两端为数字类型的二元运算符
+    pub fn compile_num_binary_expression(
         &self,
         left: &BasicValueEnum<'ctx>,
         right: &BasicValueEnum<'ctx>,
@@ -116,7 +131,120 @@ impl<'ctx> Compiler<'ctx> {
                 .builder
                 .build_float_div(left.into_float_value(), right.into_float_value(), "DIV")
                 .as_basic_value_enum(),
-            _ => never(),
+            b"%" => self
+                .builder
+                .build_float_rem(left.into_float_value(), right.into_float_value(), "REM")
+                .as_basic_value_enum(),
+            /*b"&" => self
+                .builder
+                .build_atomicrmw(
+                    AtomicRMWBinOp::And,
+                    left.into_int_value(),
+                    right.into_int_value(),
+                    "BIT_AND",
+                )
+                .as_basic_value_enum(),
+            b"|" => self
+                .builder
+                .build_or(left.into_int_value(), right.into_int_value(), "BIT_OR")
+                .as_basic_value_enum(),
+            b"^" => self
+                .builder
+                .build_xor(left.into_int_value(), right.into_int_value(), "BIT_XOR")
+                .as_basic_value_enum(),*/
+            b"<" => self
+                .builder
+                .build_float_compare(
+                    FloatPredicate::OLT,
+                    left.into_float_value(),
+                    right.into_float_value(),
+                    "LT",
+                )
+                .as_basic_value_enum(),
+            b"<=" => self
+                .builder
+                .build_float_compare(
+                    FloatPredicate::OLE,
+                    left.into_float_value(),
+                    right.into_float_value(),
+                    "LE",
+                )
+                .as_basic_value_enum(),
+            b">" => self
+                .builder
+                .build_float_compare(
+                    FloatPredicate::OGE,
+                    left.into_float_value(),
+                    right.into_float_value(),
+                    "GT",
+                )
+                .as_basic_value_enum(),
+            b">=" => self
+                .builder
+                .build_float_compare(
+                    FloatPredicate::OGE,
+                    left.into_float_value(),
+                    right.into_float_value(),
+                    "GE",
+                )
+                .as_basic_value_enum(),
+            b"==" => self
+                .builder
+                .build_float_compare(
+                    FloatPredicate::OEQ,
+                    left.into_float_value(),
+                    right.into_float_value(),
+                    "EQ",
+                )
+                .as_basic_value_enum(),
+            b"!=" => self
+                .builder
+                .build_float_compare(
+                    FloatPredicate::ONE,
+                    left.into_float_value(),
+                    right.into_float_value(),
+                    "NE",
+                )
+                .as_basic_value_enum(),
+            _ => panic!("Invalid binary operator between numbers: `{}`", operator),
+        }
+    }
+
+    // 编译两端为布尔类型的二元运算符
+    pub fn compile_bool_binary_expression(
+        &self,
+        left: &BasicValueEnum<'ctx>,
+        right: &BasicValueEnum<'ctx>,
+        operator: &str,
+    ) -> BasicValueEnum<'ctx> {
+        match operator.as_bytes() {
+            b"==" => self
+                .builder
+                .build_int_compare(
+                    IntPredicate::EQ,
+                    left.into_int_value(),
+                    right.into_int_value(),
+                    "EQ",
+                )
+                .as_basic_value_enum(),
+            b"!=" => self
+                .builder
+                .build_int_compare(
+                    IntPredicate::NE,
+                    left.into_int_value(),
+                    right.into_int_value(),
+                    "NE",
+                )
+                .as_basic_value_enum(),
+            b"&&" => self
+                .builder
+                .build_and(left.into_int_value(), right.into_int_value(), "LOGIC_AND")
+                .as_basic_value_enum(),
+            b"||" => self
+                .builder
+                .build_or(left.into_int_value(), right.into_int_value(), "LOGIC_OR")
+                .as_basic_value_enum(),
+            _ => panic!("Invalid binary operator between numbers: `{}`", operator),
         }
     }
 }
