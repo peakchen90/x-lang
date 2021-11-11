@@ -14,8 +14,7 @@ fn ast_test() {
     let ast_json_str = serde_json::to_string(&node).unwrap();
     let format_json_str =
         tiny_json::stringify(&tiny_json::parse(&ast_json_str), 2);
-    fs::write(".ast.json", format_json_str).unwrap();
-    println!("Success: write ast at: .ast.json");
+    fs::write(".debug_ast.json", format_json_str).unwrap();
 
     // format code
     let format_code = format(&str);

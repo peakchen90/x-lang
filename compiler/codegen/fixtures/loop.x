@@ -1,10 +1,14 @@
 fn a() {
+    var i = 1;
     loop {
-        break;
+        if i == 2 {
+            break;
+        }
+        i = i + 1
     }
 }
-
 a();
+
 
 fn b() {
     a: loop {
@@ -15,8 +19,8 @@ fn b() {
         print(1);
     }
 }
-
 b();
+
 
 fn c() {
     a: loop {
@@ -26,5 +30,4 @@ fn c() {
         print(1);
     }
 }
-
 c();

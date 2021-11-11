@@ -1,4 +1,8 @@
 .vscode
 .idea
 target/
-/.ast.json
+.temp/
+
+/.temp.*
+/.debug_ast.json
+/.debug.ll

@@ -10,7 +10,6 @@ use inkwell::values::*;
 use inkwell::OptimizationLevel;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::path::Path;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::{Kind, KindName};
 
@@ -56,11 +55,7 @@ impl<'ctx> Compiler<'ctx> {
 
         #[cfg(not(test))]
         if is_debug {
-            // 控制台打印 IR 码
-            println!("\n================================ LLVM-IR ================================");
-            compiler.module.print_to_stderr();
-
-            println!("\n================================ OUTPUT =================================");
+            compiler.module.print_to_file(".debug.ll");
         }
 
         unsafe {
@@ -299,7 +294,7 @@ impl<'ctx> Compiler<'ctx> {
         self.push_block_scope(then_block);
         let mut then_terminator =
             self.compile_block_statement(consequent.read_block_body(), false);
-        if !then_terminator.is_terminated() {
+        if !then_terminator.is_return() {
             self.builder.build_unconditional_branch(if_after_block);
         }
         self.pop_block_scope();

@@ -343,6 +343,36 @@ impl<'ctx> Compiler<'ctx> {
         ret_kind
     }
 
+    // 构建一个数字转整数的转换，并返回转换后值的指针
+    pub fn build_cost_int_ptr(&self, value: &BasicValueEnum<'ctx>) -> PointerValue<'ctx> {
+        let ptr = self
+            .builder
+            .build_alloca(self.context.i64_type(), "");
+        let value = value
+            .into_float_value()
+            .const_to_signed_int(self.context.i64_type());
+        self.builder.build_store(ptr, value);
+        ptr
+    }
+
+    // 构建一个数字转整数的转换，并返回转换后的值
+    pub fn build_cost_int_value(&self, value: &BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
+        let ptr = self.build_cost_int_ptr(value);
+        self.builder.build_load(ptr, "CAST_TEMP")
+    }
+
+    // 构建一个整数转浮点数字的转换，并返回转换后的值
+    pub fn build_cost_float_value(&self, value: &BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
+        let ptr = self
+            .builder
+            .build_alloca(self.context.f64_type(), "");
+        let value = value
+            .into_int_value()
+            .const_signed_to_float(self.context.f64_type());
+        self.builder.build_store(ptr, value);
+        self.builder.build_load(ptr, "CAST_TEMP")
+    }
+
     // built-in
     pub fn inject_build_in(&mut self) {
         unsafe {
