@@ -288,6 +288,25 @@ impl<'ctx> Compiler<'ctx> {
 
                 visitor.stop();
             }
+            Node::UnaryExpression { argument, operator } => {
+                let kind = self.infer_expression_kind(argument.deref());
+                let kind_name = *kind.read_kind_name().unwrap();
+                if kind_name == KindName::Number {
+                    match operator.as_bytes() {
+                        b"~" => ret_kind = Kind::create("num"),
+                        _ => panic!("Invalid unary expression"),
+                    }
+                } else if kind_name == KindName::Boolean {
+                    match operator.as_bytes() {
+                        b"!" => ret_kind = Kind::create("bool"),
+                        _ => panic!("Invalid unary expression"),
+                    }
+                } else {
+                    panic!("Invalid unary expression")
+                }
+
+                visitor.stop();
+            }
             Node::AssignmentExpression { left, .. } => {
                 ret_kind = self.infer_expression_kind(left.deref());
                 visitor.stop();

@@ -36,10 +36,10 @@ pub enum Node {
         body: Box<Node>,
     },
     BreakStatement {
-        label: Option<String>
+        label: Option<String>,
     },
     ContinueStatement {
-        label: Option<String>
+        label: Option<String>,
     },
 
     // expressions
@@ -50,6 +50,10 @@ pub enum Node {
     BinaryExpression {
         left: Box<Node>,
         right: Box<Node>,
+        operator: String,
+    },
+    UnaryExpression {
+        argument: Box<Node>,
         operator: String,
     },
     AssignmentExpression {

@@ -34,6 +34,18 @@ impl<'ctx> Compiler<'ctx> {
                     panic!("Invalid binary expression")
                 }
             }
+            Node::UnaryExpression { argument, operator } => {
+                let kind = self.infer_expression_kind(argument.deref());
+                let kind_name = *kind.read_kind_name().unwrap();
+                let argument = self.compile_expression(argument.deref());
+                if kind_name == KindName::Number {
+                    self.compile_num_unary_expression(&argument, operator)
+                } else if kind_name == KindName::Boolean {
+                    self.compile_bool_unary_expression(&argument, operator)
+                } else {
+                    panic!("Invalid binary expression")
+                }
+            }
             Node::AssignmentExpression {
                 left,
                 right,
@@ -244,7 +256,37 @@ impl<'ctx> Compiler<'ctx> {
                 .builder
                 .build_or(left.into_int_value(), right.into_int_value(), "LOGIC_OR")
                 .as_basic_value_enum(),
-            _ => panic!("Invalid binary operator between numbers: `{}`", operator),
+            _ => panic!("Invalid binary operator between bool: `{}`", operator),
+        }
+    }
+
+    // 编译数字类型的一元运算符
+    pub fn compile_num_unary_expression(
+        &self,
+        argument: &BasicValueEnum<'ctx>,
+        operator: &str,
+    ) -> BasicValueEnum<'ctx> {
+        match operator.as_bytes() {
+            // b"~" => self
+            //     .builder
+            //     .build_not(argument.into_float_value(), "BIT_NOT")
+            //     .as_basic_value_enum(),
+            _ => panic!("Invalid unary operator in numbers: `{}`", operator),
+        }
+    }
+
+    // 编译布尔类型的一元运算符
+    pub fn compile_bool_unary_expression(
+        &self,
+        argument: &BasicValueEnum<'ctx>,
+        operator: &str,
+    ) -> BasicValueEnum<'ctx> {
+        match operator.as_bytes() {
+            b"!" => self
+                .builder
+                .build_not(argument.into_int_value(),  "NOT")
+                .as_basic_value_enum(),
+            _ => panic!("Invalid unary operator in bool: `{}`", operator),
         }
     }
 }

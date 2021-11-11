@@ -166,6 +166,13 @@ impl Formatter {
                 code.push_str(" ");
                 code.push_str(&self.format_node(right.deref()));
             }
+            Node::UnaryExpression {
+                argument,
+                operator,
+            } => {
+                code.push_str(operator);
+                code.push_str(&self.format_node(argument.deref()));
+            }
             Node::AssignmentExpression {
                 left,
                 right,

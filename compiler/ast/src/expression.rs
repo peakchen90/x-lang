@@ -9,16 +9,49 @@ impl<'a> Parser<'a> {
         self.parse_maybe_binary_expression(-1)
     }
 
-    // 解析一个可能的二元表达式
-    pub fn parse_maybe_binary_expression(&mut self, current_precedence: i8) -> Option<Node> {
+    // 解析一个二元表达式（可能）
+    pub fn parse_maybe_binary_expression(
+        &mut self,
+        current_precedence: i8,
+    ) -> Option<Node> {
         if self.current_token.token_type == TokenType::ParenL {
             self.next_token();
             let left = self.parse_expression()?;
             self.consume_or_panic(TokenType::ParenR);
             self.parse_binary_expression_precedence(left, current_precedence)
         } else {
-            let left = self.parse_atom_expression()?;
+            let left = self.parse_maybe_unary_expression(current_precedence)?;
             self.parse_binary_expression_precedence(left, current_precedence)
+        }
+    }
+
+    // 解析一个一元表达式（可能）
+    pub fn parse_maybe_unary_expression(
+        &mut self,
+        current_precedence: i8,
+    ) -> Option<Node> {
+        if self.current_token.precedence <= current_precedence {
+            return self.parse_atom_expression();
+        }
+
+        match self.current_token.token_type {
+            TokenType::Sub | TokenType::Plus => {
+                panic!("No implement")
+            }
+            TokenType::LogicNot | TokenType::BitNot => {
+                let operator = self.current_token.value.to_string();
+                self.next_token();
+                let argument = self.parse_expression()?;
+                Some(Node::UnaryExpression {
+                    argument: Box::new(argument),
+                    operator,
+                })
+            }
+            _ => {
+                // TODO TRY
+                panic!("Unary op try test");
+                // self.parse_atom_expression()
+            }
         }
     }
 
