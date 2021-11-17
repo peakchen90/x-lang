@@ -31,10 +31,17 @@ pub fn handle_commander() {
         None => false,
     };
 
-    let content = fs::read_to_string(filename).unwrap();
+    let mut input_content = fs::read_to_string(filename).unwrap();
+    let content: Vec<char> = input_content.chars().collect();
+
+    // remove shell env header (start with `#!`)
+    if content[0] == '#' && content[1] == '!' {
+        let content = input_content.lines().skip(1).collect::<Vec<&str>>();
+        input_content = content.join("\n");
+    }
 
     // parse ast
-    let parser = Parser::new(&content);
+    let parser = Parser::new(&input_content);
     let node = parser.node.unwrap();
 
     compile(&node, is_debug);
