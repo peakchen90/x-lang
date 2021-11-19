@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
     // 验证是否在函数内部，否则抛错
     pub fn validate_inside_fn(&self) {
         if self.current_block_level == 0 {
-            panic!("Statements can only be defined inside functions")
+            panic!("Statements can only be used inside functions")
         }
     }
 
