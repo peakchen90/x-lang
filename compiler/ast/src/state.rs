@@ -87,6 +87,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // 检查下一个有效字符是否是指定的字符
+    pub fn check_next_char(&mut self, char: char) -> bool {
+        self.skip_space();
+        self.skip_comment();
+        self.current_char == char
+    }
+
+    // 验证是否在函数内部，否则抛错
+    pub fn validate_inside_fn(&self) {
+        if self.current_block_level == 0 {
+            panic!("Statements can only be defined inside functions")
+        }
+    }
+
     pub fn is_keyword(&self, keyword: &str) -> bool {
         self.is_token(TokenType::Keyword) && self.current_token.value == keyword
     }

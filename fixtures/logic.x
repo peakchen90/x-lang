@@ -18,8 +18,6 @@ fn a(a: bool) {
     }
 }
 
-a(true);
-
 fn b(a: bool) -> num {
     if a {
         return 1;
@@ -31,4 +29,7 @@ fn b(a: bool) -> num {
     print();
 }
 
-b(true);
+fn main() {
+    a(true);
+    b(true);
+}

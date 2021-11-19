@@ -16,7 +16,7 @@ mod tests {
 
     #[test]
     fn test1() {
-        let mut fixtures_dir = PathBuf::from(env::current_dir().unwrap()).join("fixtures");
+        let mut fixtures_dir = PathBuf::from(env::current_dir().unwrap()).join("../../fixtures");
 
         let files = fs::read_dir(fixtures_dir);
         for i in files.unwrap() {

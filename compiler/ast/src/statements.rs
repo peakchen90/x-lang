@@ -14,33 +14,53 @@ impl<'a> Parser<'a> {
                 let value = &self.current_token.value;
                 match value.as_bytes() {
                     b"fn" => {
-                        omit_tailing_semi = true;
                         if self.current_block_level > 0 {
                             panic!("Functions can only be defined up to the top level")
                         }
+                        omit_tailing_semi = true;
                         self.parse_function_declaration()
                     }
-                    b"var" => self.parse_variable_declaration(),
-                    b"return" => self.parse_return_statement(),
+                    b"var" => {
+                        self.validate_inside_fn();
+                        self.parse_variable_declaration()
+                    }
+                    b"return" => {
+                        self.validate_inside_fn();
+                        self.parse_return_statement()
+                    }
                     b"if" => {
+                        self.validate_inside_fn();
                         omit_tailing_semi = true;
                         self.parse_if_statement()
                     }
                     b"loop" => {
+                        self.validate_inside_fn();
                         omit_tailing_semi = true;
                         self.parse_loop_statement(None)
                     }
-                    b"break" => self.parse_break_statement(),
-                    b"continue" => self.parse_continue_statement(),
+                    b"break" => {
+                        self.validate_inside_fn();
+                        if self.current_loop_level == 0 {
+                            panic!("The `break` can only be use in loop statements")
+                        }
+                        self.parse_break_statement()
+                    }
+                    b"continue" => {
+                        self.validate_inside_fn();
+                        if self.current_loop_level == 0 {
+                            panic!("The `continue` can only be use in loop statements")
+                        }
+                        self.parse_continue_statement()
+                    }
                     _ => self.unexpected(),
                 }
             }
             TokenType::Identifier => {
+                self.validate_inside_fn();
+
                 // 可能是 label
                 let maybe_label = self.current_token.value.to_string();
-                self.skip_space();
-                self.skip_comment();
-                if self.current_char == ':' {
+                if self.check_next_char(':') {
                     self.next_token();
                     self.consume_or_panic(TokenType::Colon);
                     self.expect(TokenType::Keyword);
@@ -57,14 +77,13 @@ impl<'a> Parser<'a> {
                 }
             }
             TokenType::Number | TokenType::ParenL => {
+                self.validate_inside_fn();
                 let expression = Box::new(self.parse_expression().unwrap());
                 Node::ExpressionStatement { expression }
             }
             TokenType::BraceL => {
+                self.validate_inside_fn();
                 omit_tailing_semi = true;
-                if self.current_block_level == 0 {
-                    panic!("Block statements can only be used inside functions")
-                }
                 self.parse_block_statement()
             }
             _ => self.unexpected(),
@@ -253,10 +272,6 @@ impl<'a> Parser<'a> {
 
     // 解析 break 语句
     pub fn parse_break_statement(&mut self) -> Node {
-        if self.current_loop_level == 0 {
-            panic!("The `break` can only be use in loop statements")
-        }
-
         self.next_token();
         let label = if self.is_token(TokenType::Identifier) {
             let label = Some(self.current_token.value.to_string());
@@ -270,10 +285,6 @@ impl<'a> Parser<'a> {
 
     // 解析 continue 语句
     pub fn parse_continue_statement(&mut self) -> Node {
-        if self.current_loop_level == 0 {
-            panic!("The `continue` can only be use in loop statements")
-        }
-
         self.next_token();
         let label = if self.is_token(TokenType::Identifier) {
             Some(self.current_token.value.to_string())

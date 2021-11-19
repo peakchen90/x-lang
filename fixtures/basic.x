@@ -6,4 +6,6 @@ fn a(b :num, c :bool) -> num {
     return b + 1;
 }
 
-a(0.5, false);
+fn main() {
+    a(0.5, false);
+}

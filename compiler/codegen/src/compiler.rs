@@ -257,7 +257,7 @@ impl<'ctx> Compiler<'ctx> {
                 self.builder.build_unconditional_branch(after_block); // 切换到块后续
             } else {
                 unsafe {
-                    after_block.delete();
+                    after_block.delete().unwrap();
                 }
             }
             self.pop_block_scope();
@@ -340,7 +340,7 @@ impl<'ctx> Compiler<'ctx> {
         // 如果 if / else 都return了，下方的代码直接不用执行了
         if then_terminator.is_terminated() && else_terminator.is_terminated() {
             unsafe {
-                if_after_block.delete();
+                if_after_block.delete().unwrap();
             }
             return then_terminator.merge(else_terminator);
         }
