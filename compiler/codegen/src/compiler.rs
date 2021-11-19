@@ -59,9 +59,14 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         unsafe {
-            compiler
+            // 读取 main 函数并调用
+            type MainFunction = unsafe extern "C" fn() -> isize;
+            let main_fn = compiler
                 .execution_engine
-                .run_function(compiler.main_fn.unwrap(), &vec![]);
+                .get_function::<MainFunction>("main");
+            if let Ok(main_fn) = main_fn {
+                main_fn.call();
+            }
         }
 
         // Target::initialize_all(&InitializationConfig::default());
@@ -88,14 +93,9 @@ impl<'ctx> Compiler<'ctx> {
 
         match node {
             Node::Program { body } => {
-                self.main_fn = Some(self.compile_function(
-                    "main",
-                    &vec![],
-                    &vec![],
-                    body,
-                    &Kind::create("void"),
-                    true,
-                ));
+                for stat in body.iter() {
+                    self.compile_statement(stat.deref());
+                }
             }
             _ => never(),
         };

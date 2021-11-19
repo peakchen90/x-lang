@@ -5,17 +5,22 @@
 ## 基本语法
 
 ```
-// 行注释
 fn add(a: num, b: num) -> num {
     return a + b; // 返回语句
 }
 
-var n: num = 3;
-var result = add(n, 4.2);
+// main 函数，程序的入口
+fn main() {
+    var n: num = 3;
+    var result = add(n, 4.2);
 
-// 调用系统内置的打印方法
-print(result);
+    // 调用系统内置的打印方法
+    print(result);
+}
+
 ```
+
+更多示例请参考 `fixtures` 目录里的例子
 
 ## 怎样跑起来
 对于 **MacOS (x86-64)** 用户，可以直接下载编译好的二进制文件执行 ([下载链接](https://github.com/peakchen90/x-lang/releases/tag/v0.0.1))
