@@ -1,8 +1,6 @@
-use crate::build_in::{
-    system_print_bool, system_print_newline, system_print_num, system_print_str,
-};
+use crate::build_in::*;
 use crate::compiler::Compiler;
-use crate::scope::ScopeType;
+use crate::scope::{FunctionScope, ScopeType};
 use inkwell::basic_block::BasicBlock;
 use inkwell::comdat::ComdatSelectionKind;
 use inkwell::context::Context;
@@ -144,19 +142,11 @@ impl<'ctx> Compiler<'ctx> {
         ptr
     }
 
-    pub fn get_declare_fn(
-        &self,
-        name: &str,
-    ) -> (&FunctionValue<'ctx>, &Vec<KindName>, &Kind) {
+    pub fn get_declare_fn(&self, name: &str) -> &FunctionScope<'ctx> {
         self.scope
             .search_by_name(name, false)
             .expect(&format!("Function `{}` is not declare", name))
             .get_fn()
-    }
-
-    pub fn get_declare_fn_val(&self, name: &str) -> &FunctionValue<'ctx> {
-        let (fn_value, ..) = self.get_declare_fn(name);
-        fn_value
     }
 
     pub fn put_variable(
@@ -203,26 +193,6 @@ impl<'ctx> Compiler<'ctx> {
         self.scope.put_variable(name, scope_type);
     }
 
-    pub fn put_function(
-        &mut self,
-        name: &str,
-        fn_value: &FunctionValue<'ctx>,
-        arg_kind_names: Vec<KindName>,
-        return_kind: &Kind,
-    ) {
-        let mut root = self.scope.root().unwrap();
-        if root.has(name) {
-            panic!("Scope name `{}` is exist", name);
-        }
-
-        let scope_type = ScopeType::Function {
-            fn_value: *fn_value,
-            return_kind: *return_kind,
-            arg_kind_names,
-        };
-        root.add(name, scope_type);
-    }
-
     pub fn push_block_scope(&mut self, basic_block: BasicBlock<'ctx>) {
         self.scope.push(basic_block);
         self.builder.position_at_end(basic_block);
@@ -247,7 +217,8 @@ impl<'ctx> Compiler<'ctx> {
                 match self.scope.search_by_name(name, false) {
                     Some(v) => {
                         if v.is_fn() {
-                            let (.., return_kind) = v.get_fn();
+                            let FunctionScope { return_kind, .. } =
+                                self.get_declare_fn(name);
                             ret_kind = *return_kind;
                             visitor.stop();
                         }
@@ -345,9 +316,7 @@ impl<'ctx> Compiler<'ctx> {
 
     // 构建一个数字转整数的转换，并返回转换后值的指针
     pub fn build_cost_int_ptr(&self, value: &BasicValueEnum<'ctx>) -> PointerValue<'ctx> {
-        let ptr = self
-            .builder
-            .build_alloca(self.context.i64_type(), "");
+        let ptr = self.builder.build_alloca(self.context.i64_type(), "");
         let value = value
             .into_float_value()
             .const_to_signed_int(self.context.i64_type());
@@ -356,16 +325,20 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     // 构建一个数字转整数的转换，并返回转换后的值
-    pub fn build_cost_int_value(&self, value: &BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
+    pub fn build_cost_int_value(
+        &self,
+        value: &BasicValueEnum<'ctx>,
+    ) -> BasicValueEnum<'ctx> {
         let ptr = self.build_cost_int_ptr(value);
         self.builder.build_load(ptr, "CAST_TEMP")
     }
 
     // 构建一个整数转浮点数字的转换，并返回转换后的值
-    pub fn build_cost_float_value(&self, value: &BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
-        let ptr = self
-            .builder
-            .build_alloca(self.context.f64_type(), "");
+    pub fn build_cost_float_value(
+        &self,
+        value: &BasicValueEnum<'ctx>,
+    ) -> BasicValueEnum<'ctx> {
+        let ptr = self.builder.build_alloca(self.context.f64_type(), "");
         let value = value
             .into_int_value()
             .const_signed_to_float(self.context.f64_type());
@@ -421,11 +394,13 @@ impl<'ctx> Compiler<'ctx> {
         self.print_fns.insert(type_name, print_fn_value);
         self.scope.external.add(
             "print",
-            ScopeType::Function {
+            ScopeType::Function(FunctionScope {
                 fn_value: print_fn_value,
                 return_kind: Kind::create("void"),
                 arg_kind_names: vec![],
-            },
+                arg_variables: vec![],
+                entry_block: None,
+            }),
         )
     }
 

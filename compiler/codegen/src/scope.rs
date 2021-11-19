@@ -1,15 +1,20 @@
 use inkwell::basic_block::BasicBlock;
-use inkwell::values::{FunctionValue, PointerValue};
+use inkwell::values::{BasicValueEnum, FunctionValue, PointerValue};
 use std::collections::HashMap;
 use x_lang_ast::shared::{Kind, KindName};
 
 #[derive(Debug)]
+pub struct FunctionScope<'ctx> {
+    pub fn_value: FunctionValue<'ctx>,
+    pub return_kind: Kind,
+    pub arg_kind_names: Vec<KindName>,
+    pub arg_variables: Vec<(String, Kind, BasicValueEnum<'ctx>)>, // 形参信息，预编译的时候设置，真实编译的时候再生效
+    pub entry_block: Option<BasicBlock<'ctx>>,
+}
+
+#[derive(Debug)]
 pub enum ScopeType<'ctx> {
-    Function {
-        fn_value: FunctionValue<'ctx>,
-        return_kind: Kind,
-        arg_kind_names: Vec<KindName>,
-    },
+    Function(FunctionScope<'ctx>),
     Variable {
         kind: Kind,
         ptr: Option<PointerValue<'ctx>>,
@@ -28,13 +33,9 @@ impl<'ctx> ScopeType<'ctx> {
         !self.is_fn()
     }
 
-    pub fn get_fn(&self) -> (&FunctionValue<'ctx>, &Vec<KindName>, &Kind) {
+    pub fn get_fn(&self) -> &FunctionScope<'ctx> {
         match self {
-            ScopeType::Function {
-                fn_value,
-                arg_kind_names,
-                return_kind,
-            } => (fn_value, arg_kind_names, return_kind),
+            ScopeType::Function(v) => v,
             ScopeType::Variable { .. } => panic!("Error"),
         }
     }
@@ -94,14 +95,16 @@ impl<'ctx> Scope<'ctx> {
 
 #[derive(Debug)]
 pub struct BlockScope<'ctx> {
-    pub external: Scope<'ctx>,
-    scope_chains: Vec<Scope<'ctx>>,
+    pub external: Scope<'ctx>,      // 外部绑定的作用域
+    pub fns: Scope<'ctx>,           // 全局定义的方法（只能在全局定义）
+    scope_chains: Vec<Scope<'ctx>>, // 变量作用域链
 }
 
 impl<'ctx> BlockScope<'ctx> {
     pub fn new() -> Self {
         BlockScope {
             external: Scope::new(None),
+            fns: Scope::new(None),
             scope_chains: vec![],
         }
     }
@@ -122,37 +125,40 @@ impl<'ctx> BlockScope<'ctx> {
         self.scope_chains.last_mut()
     }
 
-    // 获取顶层的块级作用域
-    pub fn root(&mut self) -> Option<&mut Scope<'ctx>> {
-        self.scope_chains.first_mut()
-    }
-
-    // 当前是否是根作用域
-    pub fn is_root(&self) -> bool {
-        self.scope_chains.len() == 1
-    }
-
-    // 将一个变量或函数放置到当前块作用域中
+    // 将一个变量放置到当前块作用域中
     pub fn put_variable(&mut self, name: &str, scope_type: ScopeType<'ctx>) {
         let mut scope = self.current().unwrap();
         scope.add(name, scope_type);
+    }
+
+    // 将一个函数放置到全局作用域中
+    pub fn put_fn(&mut self, name: &str, scope_type: ScopeType<'ctx>) {
+        self.fns.add(name, scope_type);
     }
 
     // 作用域范围内搜索变量或方法声明
     pub fn search_by_name(
         &self,
         name: &str,
-        only_user: bool,
+        only_user: bool, // 只搜索用户定义的
     ) -> Option<&ScopeType<'ctx>> {
+        // 搜索变量作用域链
         for scope in self.scope_chains.iter().rev() {
             if scope.has(name) {
                 return scope.get(name);
             }
         }
+
+        // 搜索全局方法
+        if self.fns.has(name) {
+            return self.fns.get(name);
+        }
+
         // 搜索 external 作用域
         if !only_user && self.external.has(name) {
             return self.external.get(name);
         }
+
         None
     }
 }

@@ -1,5 +1,6 @@
 use crate::compiler::Compiler;
 use crate::helper::never;
+use crate::scope::FunctionScope;
 use inkwell::values::*;
 use inkwell::{AtomicRMWBinOp, FloatPredicate, IntPredicate};
 use std::ops::Deref;
@@ -89,7 +90,11 @@ impl<'ctx> Compiler<'ctx> {
             return self.build_call_system_print(arguments);
         }
 
-        let (fn_value, arg_kind_names, _) = self.get_declare_fn(name);
+        let FunctionScope {
+            fn_value,
+            arg_kind_names,
+            ..
+        } = self.get_declare_fn(name);
 
         // 校验参数
         if arg_kind_names.len() != arguments.len() {
@@ -284,7 +289,7 @@ impl<'ctx> Compiler<'ctx> {
         match operator.as_bytes() {
             b"!" => self
                 .builder
-                .build_not(argument.into_int_value(),  "NOT")
+                .build_not(argument.into_int_value(), "NOT")
                 .as_basic_value_enum(),
             _ => panic!("Invalid unary operator in bool: `{}`", operator),
         }

@@ -1,5 +1,5 @@
 use crate::helper::{never, Terminator};
-use crate::scope::{BlockScope, Label, Labels};
+use crate::scope::{BlockScope, FunctionScope, Label, Labels, ScopeType};
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::execution_engine::*;
@@ -91,6 +91,32 @@ impl<'ctx> Compiler<'ctx> {
 
         match node {
             Node::Program { body } => {
+                // 预编译
+                for stat in body.iter() {
+                    if let Node::FunctionDeclaration {
+                        id,
+                        arguments,
+                        body,
+                        return_kind,
+                    } = stat.deref()
+                    {
+                        let (name, ..) = id.deref().read_identifier();
+                        let args = arguments.iter();
+                        let args = args.map(|arg| {
+                            let (.., kind) = arg.deref().read_identifier();
+                            let kind_name = kind.read_kind_name().unwrap();
+                            (match kind_name {
+                                KindName::Number => self.build_number_type().into(),
+                                KindName::Boolean => self.build_bool_type().into(),
+                                KindName::Void => never(),
+                            })
+                        });
+                        let args = args.collect();
+                        self.pre_compile_function(name, &args, arguments, return_kind);
+                    }
+                }
+
+                // 逐条编译语句
                 for stat in body.iter() {
                     self.compile_statement(stat.deref());
                 }
@@ -109,23 +135,8 @@ impl<'ctx> Compiler<'ctx> {
                 return_kind,
             } => {
                 let (name, ..) = id.deref().read_identifier();
-                let args = arguments.iter();
-                let args = args.map(|arg| {
-                    let (.., kind) = arg.deref().read_identifier();
-                    let kind_name = kind.read_kind_name().unwrap();
-                    (match kind_name {
-                        KindName::Number => self.build_number_type().into(),
-                        KindName::Boolean => self.build_bool_type().into(),
-                        KindName::Void => never(),
-                    })
-                });
-                let args = args.collect();
-
-                let body = match body.deref() {
-                    Node::BlockStatement { body } => body,
-                    _ => never(),
-                };
-                self.compile_function(name, &args, arguments, body, return_kind, false);
+                let body = body.deref().read_block_body();
+                self.compile_function(name, body);
                 Terminator::None
             }
             Node::VariableDeclaration { id, init } => {
@@ -160,30 +171,29 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    /// 编译函数声明，返回函数 value
-    pub fn compile_function(
+    // 预编译函数（包括生成函数指针、设置形参变量）
+    pub fn pre_compile_function(
         &mut self,
         name: &str,
         args: &Vec<BasicMetadataTypeEnum<'ctx>>,
         arguments: &Vec<Box<Node>>,
-        body: &Vec<Box<Node>>,
         return_kind: &Kind,
-        is_only_block: bool,
-    ) -> FunctionValue<'ctx> {
+    ) {
+        if self.scope.fns.has(name) {
+            panic!("A function named `{}` has already been defined", name);
+        }
+
         let fn_value = self.build_fn_value(name, return_kind, args.as_slice());
         let entry_block = self.context.append_basic_block(fn_value, "entry");
-        self.push_block_scope(entry_block); // 作用域入栈
-
-        // 更新当前正在解析的函数
-        self.current_fn = Some(fn_value);
 
         // 设置形参
         let mut arg_kind_names = vec![];
+        let mut arg_variables = vec![];
         for (i, arg) in fn_value.get_param_iter().enumerate() {
             let (arg_name, kind) = arguments[i].deref().read_identifier();
             arg_kind_names.push(*kind.read_kind_name().unwrap());
             let arg_value = fn_value.get_nth_param(i as u32).unwrap();
-            self.put_variable(arg_name, *kind, Some(arg_value), true);
+            arg_variables.push((arg_name.to_string(), *kind, arg_value));
 
             // 为每个参数设置名称
             match kind.read_kind_name().unwrap() {
@@ -198,9 +208,38 @@ impl<'ctx> Compiler<'ctx> {
                 KindName::Void => never(),
             }
         }
-        if !is_only_block {
-            self.put_function(name, &fn_value, arg_kind_names, &return_kind);
+
+        let fn_scope = FunctionScope {
+            fn_value,
+            return_kind: *return_kind,
+            arg_kind_names,
+            arg_variables,
+            entry_block: Some(entry_block),
+        };
+        self.scope.put_fn(name, ScopeType::Function(fn_scope));
+    }
+
+    /// 编译函数声明，返回函数 value
+    pub fn compile_function(
+        &mut self,
+        name: &str,
+        body: &Vec<Box<Node>>,
+    ) -> FunctionValue<'ctx> {
+        let pre_fn = self.scope.fns.get(name).unwrap().get_fn();
+        let fn_value = pre_fn.fn_value;
+        let entry_block = pre_fn.entry_block.unwrap();
+        let arg_variables = pre_fn.arg_variables.clone();
+
+        // 作用域入栈
+        self.push_block_scope(entry_block);
+
+        // 形参设置到作用域
+        for (arg_name, kind, arg_value) in arg_variables.iter() {
+            self.put_variable(arg_name, *kind, Some(*arg_value), true);
         }
+
+        // 更新当前正在解析的函数
+        self.current_fn = Some(fn_value);
 
         // 编译函数体
         let terminator = self.compile_block_statement(body, false);
