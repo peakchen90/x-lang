@@ -21,7 +21,6 @@ pub struct Compiler<'ctx> {
     pub labels: Labels<'ctx>,
     pub execution_engine: ExecutionEngine<'ctx>,
     pub print_fns: HashMap<&'static str, FunctionValue<'ctx>>,
-    pub main_fn: Option<FunctionValue<'ctx>>,
     pub current_fn: Option<FunctionValue<'ctx>>,
     pub is_debug: bool,
 }
@@ -44,7 +43,6 @@ impl<'ctx> Compiler<'ctx> {
             scope,
             labels,
             execution_engine,
-            main_fn: None,
             current_fn: None,
             print_fns: HashMap::new(),
             is_debug,
