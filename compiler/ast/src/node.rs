@@ -1,4 +1,4 @@
-use crate::shared::Kind;
+use crate::shared::{Kind};
 
 #[derive(Debug, Serialize)]
 pub enum Node {
@@ -7,11 +7,17 @@ pub enum Node {
     },
 
     //  statements
+    ImportDeclaration {
+        source: String,
+        is_std_source: bool,
+        specifiers: Option<Vec<Box<Node>>>
+    },
     FunctionDeclaration {
         id: Box<Node>,
         arguments: Vec<Box<Node>>,
         body: Box<Node>,
         return_kind: Kind,
+        is_pub: bool
     },
     VariableDeclaration {
         id: Box<Node>,
@@ -43,6 +49,10 @@ pub enum Node {
     },
 
     // expressions
+    ImportSpecifier {
+        imported: String,
+        local: Option<String>,
+    },
     CallExpression {
         callee: Box<Node>,
         arguments: Vec<Box<Node>>,

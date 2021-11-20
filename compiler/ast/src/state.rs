@@ -101,6 +101,14 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // 检查是否在程序根层级下，否则抛错
+    pub fn validate_program_root(&self, title: &str) {
+        if self.current_block_level > 0 {
+            panic!("{} can only be in the root of the program", title)
+        }
+    }
+
+    // 是否是某个关键字
     pub fn is_keyword(&self, keyword: &str) -> bool {
         self.is_token(TokenType::Keyword) && self.current_token.value == keyword
     }
@@ -108,6 +116,16 @@ impl<'a> Parser<'a> {
     // 判断是否是某一类型的token
     pub fn is_token(&self, token_type: TokenType) -> bool {
         self.current_token.token_type == token_type
+    }
+
+    // 当前字符是否是换行符
+    pub fn is_newline_char(&self) -> bool {
+        self.current_char == '\n' || self.current_char == '\r'
+    }
+
+    // 当前字符是否是空白字符
+    pub fn is_space_char(&self) -> bool {
+        self.current_char == ' ' || self.current_char == '\t' || self.is_newline_char()
     }
 
     // 期望当前 token 类型为指定类型，否则抛错

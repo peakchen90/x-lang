@@ -29,19 +29,18 @@ fn main() {
 ## 深入 `import` 关键字
 
 ### 导入其他目录的模块
-- `import a/b.{x}`
-- `import ../a/b.{y}`
-- `import /absolute/a/b.{z}`
+- `import mod/b.{x}`
+- `import ../mod/b.{y}`
+- `import /absolute/mod/b.{z}`
 
 ### 同时导入多个方法
-- `import a/b.{x,y,z}`
-- `import a/b.{*}`: 导入 a/b 模块内所有被 `pub` 修饰的方法（不能与其他具名导入混用）
-- `import a/b` : 与 `use a/b.{*}` 含义相同
+- `import mod.{x,y,z}`
+- `import mod.{*}`: 导入 mod 模块内所有被 `pub` 修饰的方法
+- `import mod` : 与 `use mod.{*}` 含义相同
 
 ### 重命名
-- `import a/b.{x,y as foo}`
-- `import a/b.{*}`: 导入 a/b 模块内所有被 `pub` 修饰的方法
-- `import a/b` : 与 `use a/b.{*}` 含义相同
+- `import mod.{x,y as foo}`
+- `import mod.{*, x as foo}`: 导入 mod 模块内所有被 `pub` 修饰的方法。其中：`x` 被重命名为 `foo`
 
 ### 导入内置标准库模块
 > 相比自定义模块，导入内置标准库模块需要使用 `<>` 包裹模块路径，其他用法相同

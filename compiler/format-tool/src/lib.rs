@@ -47,13 +47,43 @@ impl Formatter {
                     code.push_str(self.format_node(i.deref()).as_str());
                 }
             }
+            Node::ImportDeclaration {
+                source,
+                is_std_source,
+                specifiers,
+            } => {
+                code.push_str("import ");
+                if *is_std_source {
+                    code.push_str("<")
+                }
+                code.push_str(source);
+                if *is_std_source {
+                    code.push_str(">")
+                }
+                if let Some(specifiers) = specifiers {
+                    code.push_str(".{");
+                    for (i, specifier) in specifiers.iter().enumerate() {
+                        code.push_str(&self.format_node(specifier.deref()));
+                        if i < specifiers.len() - 1 {
+                            code.push_str(", ");
+                        }
+                    }
+                    code.push_str("}");
+                }
+                code.push_str("\n");
+            }
             Node::FunctionDeclaration {
                 id,
                 arguments,
                 body,
                 return_kind,
+                is_pub,
             } => {
-                code.push_str("\nfn");
+                code.push_str("\n");
+                if *is_pub {
+                    code.push_str("pub ");
+                }
+                code.push_str("fn");
                 let (name, ..) = id.deref().read_identifier();
                 code.push_str(" ");
                 code.push_str(name);
@@ -143,6 +173,13 @@ impl Formatter {
                 }
                 code.push_str(";\n")
             }
+            Node::ImportSpecifier { imported, local } => {
+                code.push_str(imported);
+                if let Some(local) = local {
+                    code.push_str(" as ");
+                    code.push_str(local);
+                }
+            }
             Node::CallExpression { callee, arguments } => {
                 let (callee_str, ..) = callee.deref().read_identifier();
                 code.push_str(callee_str);
@@ -166,10 +203,7 @@ impl Formatter {
                 code.push_str(" ");
                 code.push_str(&self.format_node(right.deref()));
             }
-            Node::UnaryExpression {
-                argument,
-                operator,
-            } => {
+            Node::UnaryExpression { argument, operator } => {
                 code.push_str(operator);
                 code.push_str(&self.format_node(argument.deref()));
             }

@@ -1,6 +1,9 @@
 // 关键字
-const KEYWORDS: [&str; 10] = [
+const KEYWORDS: [&str; 17] = [
     "fn", "var", "return", "true", "false", "if", "else", "loop", "break", "continue",
+    "pub", "import", "as", //
+    // reserve
+    "class", "this", "extends", "super",
 ];
 
 fn array_index_of_str(arr: &[&str], value: &str) -> isize {

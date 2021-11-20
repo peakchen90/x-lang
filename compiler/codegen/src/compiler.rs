@@ -98,6 +98,7 @@ impl<'ctx> Compiler<'ctx> {
                         arguments,
                         body,
                         return_kind,
+                        ..
                     } = stat.deref()
                     {
                         let (name, ..) = id.deref().read_identifier();
@@ -133,6 +134,7 @@ impl<'ctx> Compiler<'ctx> {
                 arguments,
                 body,
                 return_kind,
+                ..
             } => {
                 let (name, ..) = id.deref().read_identifier();
                 let body = body.deref().read_block_body();

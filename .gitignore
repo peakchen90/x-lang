@@ -6,3 +6,5 @@ target/
 /.temp.*
 /.debug_ast.json
 /.debug.ll
+/test.x
+/test.fmt.x

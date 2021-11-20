@@ -11,11 +11,11 @@
 `loop`
 `break`
 `continue`
-
-### 保留字
 `pub`
 `import`
 `as`
+
+### 保留字
 `class`
 `this`
 `extends`

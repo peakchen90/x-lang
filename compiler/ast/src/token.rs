@@ -30,11 +30,15 @@ pub enum TokenType {
     BitXor,    // ^
     ParenL,    // (
     ParenR,    // )
+    BracketL,  // [
+    BracketR,  // ]
     BraceL,    // {
     BraceR,    // }
     Comma,     // ,
+    Dot,       // .
     Semi,      // ;
     Colon,     // :
+    Star,      // *
     ReturnSym, // ->
 }
 
@@ -65,9 +69,11 @@ impl Token {
             | TokenType::Mul
             | TokenType::Div
             | TokenType::ParenL
+            | TokenType::BracketL
             | TokenType::BraceL
             | TokenType::BraceR
             | TokenType::Colon
+            | TokenType::Comma
             | TokenType::Semi => p.allow_expr = true,
             _ => p.allow_expr = false,
         }
@@ -117,7 +123,11 @@ impl<'a> Parser<'a> {
             }
             '*' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::Mul, "*", 15)
+                if self.allow_expr {
+                    Token::new(self, TokenType::Star, "*")
+                } else {
+                    Token::create_op(self, TokenType::Mul, "*", 15)
+                }
             }
             '/' => {
                 self.move_index(1);
@@ -188,6 +198,14 @@ impl<'a> Parser<'a> {
                 self.move_index(1);
                 Token::new(self, TokenType::ParenR, ")")
             }
+            '[' => {
+                self.move_index(1);
+                Token::new(self, TokenType::BracketL, "[")
+            }
+            ']' => {
+                self.move_index(1);
+                Token::new(self, TokenType::BracketR, "]")
+            }
             '{' => {
                 self.move_index(1);
                 Token::new(self, TokenType::BraceL, "{")
@@ -199,6 +217,10 @@ impl<'a> Parser<'a> {
             ',' => {
                 self.move_index(1);
                 Token::new(self, TokenType::Comma, ",")
+            }
+            '.' => {
+                self.move_index(1);
+                Token::new(self, TokenType::Dot, ".")
             }
             ';' => {
                 self.move_index(1);
@@ -224,7 +246,7 @@ impl<'a> Parser<'a> {
         let mut value = String::new();
         while self.check_valid_index()
             && match self.current_char {
-                'A'..='Z' | 'a'..='z' | '0'..='9' => true,
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '$' => true,
                 _ => false,
             }
         {
@@ -266,13 +288,9 @@ impl<'a> Parser<'a> {
 
     // 跳过空白字符
     pub fn skip_space(&mut self) {
-        while self.current_char == ' '
-            || self.current_char == '\t'
-            || self.current_char == '\n'
-            || self.current_char == '\r'
-        {
+        while self.is_space_char() {
             // 标记已经换行过
-            if self.current_char == '\n' || self.current_char == '\r' {
+            if self.is_newline_char() {
                 self.is_seen_newline = true;
             }
 
@@ -288,10 +306,7 @@ impl<'a> Parser<'a> {
     pub fn skip_comment(&mut self) {
         while self.current_char == '/' && self.look_behind(1) == '/' {
             self.move_index(2);
-            while self.check_valid_index()
-                && self.current_char != '\n'
-                && self.current_char != '\r'
-            {
+            while self.check_valid_index() && !self.is_newline_char() {
                 self.move_index(1);
             }
             self.skip_space();
