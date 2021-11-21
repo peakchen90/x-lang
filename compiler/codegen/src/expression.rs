@@ -17,12 +17,15 @@ impl<'ctx> Compiler<'ctx> {
                 left,
                 right,
                 operator,
-                ..
+                position,
             } => {
                 let left_kind = self.infer_expression_kind(left.deref());
                 let right_kind = self.infer_expression_kind(right.deref());
                 if left_kind != right_kind {
-                    panic!("Types of binary expressions are inconsistent");
+                    self.unexpected_err(
+                        position.0,
+                        "Types of binary expressions are inconsistent",
+                    );
                 }
 
                 let kind_name = *left_kind.read_kind_name().unwrap();
@@ -33,11 +36,13 @@ impl<'ctx> Compiler<'ctx> {
                 } else if kind_name == KindName::Boolean {
                     self.compile_bool_binary_expression(&left, &right, operator)
                 } else {
-                    panic!("Invalid binary expression")
+                    self.unexpected_err(position.0, "Invalid binary expression");
                 }
             }
             Node::UnaryExpression {
-                argument, operator, ..
+                argument,
+                operator,
+                position,
             } => {
                 let kind = self.infer_expression_kind(argument.deref());
                 let kind_name = *kind.read_kind_name().unwrap();
@@ -47,26 +52,29 @@ impl<'ctx> Compiler<'ctx> {
                 } else if kind_name == KindName::Boolean {
                     self.compile_bool_unary_expression(&argument, operator)
                 } else {
-                    panic!("Invalid binary expression")
+                    self.unexpected_err(position.0, "Invalid binary expression");
                 }
             }
             Node::AssignmentExpression {
                 left,
                 right,
                 operator,
-                ..
+                position,
             } => {
-                let (left_var, ..) = left.deref().read_identifier();
-                let ptr = self.get_declare_var_ptr(left_var);
+                let (left_var, .., pos) = left.deref().read_identifier();
+                let ptr = self.get_declare_var_ptr(left_var, pos);
                 let right = self.compile_expression(right.deref());
                 match ptr {
                     Some(ptr) => self.builder.build_store(*ptr, right),
-                    None => panic!("Can not assign a value on void type"),
+                    None => {
+                        // self.unexpected_err(position.0, )
+                        panic!("Can not assign a value on void type")
+                    }
                 };
                 right
             }
-            Node::Identifier { name, .. } => {
-                let ptr = self.get_declare_var_ptr(name);
+            Node::Identifier { name, position, .. } => {
+                let ptr = self.get_declare_var_ptr(name, position.0);
                 match ptr {
                     Some(ptr) => self.builder.build_load(*ptr, name),
                     None => panic!("Can not get value on void type"),
@@ -87,7 +95,7 @@ impl<'ctx> Compiler<'ctx> {
         callee: &Node,
         arguments: &Vec<Box<Node>>,
     ) -> BasicValueEnum<'ctx> {
-        let (name, ..) = callee.read_identifier();
+        let (name, .., pos) = callee.read_identifier();
 
         // print 方法调用特殊处理
         if name == "print" && self.scope.search_by_name(name, true).is_none() {
@@ -98,7 +106,7 @@ impl<'ctx> Compiler<'ctx> {
             fn_value,
             arg_kind_names,
             ..
-        } = self.get_declare_fn(name);
+        } = self.get_declare_fn(name, pos);
 
         // 校验参数
         if arg_kind_names.len() != arguments.len() {

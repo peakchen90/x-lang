@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use crate::build_in::*;
 use crate::compiler::Compiler;
 use crate::scope::{FunctionScope, ScopeType};
@@ -7,6 +6,7 @@ use inkwell::comdat::ComdatSelectionKind;
 use inkwell::context::Context;
 use inkwell::types::*;
 use inkwell::values::*;
+use std::ops::Deref;
 use x_lang_ast::code_frame::print_error_frame;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::{Kind, KindName};
@@ -130,23 +130,33 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    pub fn get_declare_var(&self, name: &str) -> (&Kind, &Option<PointerValue<'ctx>>) {
-        self.scope
-            .search_by_name(name, false)
-            .expect(&format!("Variable `{}` is not found", name))
-            .get_var()
+    pub fn get_declare_var(
+        &self,
+        name: &str,
+        pos: usize,
+    ) -> (&Kind, &Option<PointerValue<'ctx>>) {
+        let target = self.scope.search_by_name(name, false);
+        if target.is_none() {
+            self.unexpected_err(pos, &format!("Scope `{}` is not found", name))
+        }
+        target.unwrap().get_var()
     }
 
-    pub fn get_declare_var_ptr(&self, name: &str) -> &Option<PointerValue<'ctx>> {
-        let (_, ptr) = self.get_declare_var(name);
+    pub fn get_declare_var_ptr(
+        &self,
+        name: &str,
+        pos: usize,
+    ) -> &Option<PointerValue<'ctx>> {
+        let (_, ptr) = self.get_declare_var(name, pos);
         ptr
     }
 
-    pub fn get_declare_fn(&self, name: &str) -> &FunctionScope<'ctx> {
-        self.scope
-            .search_by_name(name, false)
-            .expect(&format!("Function `{}` is not declare", name))
-            .get_fn()
+    pub fn get_declare_fn(&self, name: &str, pos: usize) -> &FunctionScope<'ctx> {
+        let target = self.scope.search_by_name(name, false);
+        if target.is_none() {
+            self.unexpected_err(pos, &format!("Function `{}` is not declare", name))
+        }
+        target.unwrap().get_fn()
     }
 
     pub fn put_variable(
@@ -155,10 +165,11 @@ impl<'ctx> Compiler<'ctx> {
         kind: Kind,
         value: Option<BasicValueEnum<'ctx>>,
         is_arg: bool, // 是否是函数参数
+        pos: usize,
     ) {
         let current = self.scope.current().unwrap();
         if current.has(name) {
-            panic!("Scope name `{}` is exist", name);
+            self.unexpected_err(pos, &format!("Scope name `{}` is exist", name));
         }
 
         // 内存中的描述名称
@@ -212,30 +223,46 @@ impl<'ctx> Compiler<'ctx> {
         let mut ret_kind = Kind::None;
 
         Visitor::walk(expr, &mut |node, mut visitor| match node {
-            Node::CallExpression { callee, .. } => {
+            Node::CallExpression {
+                callee, position, ..
+            } => {
                 let (name, ..) = callee.deref().read_identifier();
                 match self.scope.search_by_name(name, false) {
                     Some(v) => {
                         if v.is_fn() {
                             let FunctionScope { return_kind, .. } =
-                                self.get_declare_fn(name);
+                                self.get_declare_fn(name, position.0);
+                            if !return_kind.is_exact()
+                                || *return_kind.read_return_kind_name() == KindName::Void
+                            {
+                                self.unexpected_err(
+                                    position.0,
+                                    &format!("Unexpected call expression: cannot return void type"),
+                                )
+                            }
                             ret_kind = *return_kind;
                             visitor.stop();
                         }
                     }
-                    _ => panic!("Function `{}` is not found", name),
+                    _ => self.unexpected_err(
+                        position.0,
+                        &format!("Function `{}` is not found", name),
+                    ),
                 }
             }
             Node::BinaryExpression {
                 left,
                 right,
                 operator,
-                ..
+                position,
             } => {
                 let left_kind = self.infer_expression_kind(left.deref());
                 let right_kind = self.infer_expression_kind(right.deref());
                 if left_kind != right_kind {
-                    panic!("Types of binary expressions are inconsistent");
+                    self.unexpected_err(
+                        position.0,
+                        "Types of binary expressions are inconsistent",
+                    );
                 }
 
                 let kind_name = *left_kind.read_kind_name().unwrap();
@@ -247,36 +274,38 @@ impl<'ctx> Compiler<'ctx> {
                         b"+" | b"-" | b"*" | b"/" | b"%" | b"&" | b"|" | b"^" => {
                             ret_kind = Kind::create("num")
                         }
-                        _ => panic!("Invalid binary expression"),
+                        _ => self.unexpected_err(position.0, "Invalid binary expression"),
                     }
                 } else if kind_name == KindName::Boolean {
                     match operator.as_bytes() {
                         b"==" | b"!=" | b"&&" | b"||" => ret_kind = Kind::create("bool"),
-                        _ => panic!("Invalid binary expression"),
+                        _ => self.unexpected_err(position.0, "Invalid binary expression"),
                     }
                 } else {
-                    panic!("Invalid binary expression")
+                    self.unexpected_err(position.0, "Invalid binary expression")
                 }
 
                 visitor.stop();
             }
             Node::UnaryExpression {
-                argument, operator, ..
+                argument,
+                operator,
+                position,
             } => {
                 let kind = self.infer_expression_kind(argument.deref());
                 let kind_name = *kind.read_kind_name().unwrap();
                 if kind_name == KindName::Number {
                     match operator.as_bytes() {
                         b"~" => ret_kind = Kind::create("num"),
-                        _ => panic!("Invalid unary expression"),
+                        _ => self.unexpected_err(position.0, "Invalid unary expression"),
                     }
                 } else if kind_name == KindName::Boolean {
                     match operator.as_bytes() {
                         b"!" => ret_kind = Kind::create("bool"),
-                        _ => panic!("Invalid unary expression"),
+                        _ => self.unexpected_err(position.0, "Invalid unary expression"),
                     }
                 } else {
-                    panic!("Invalid unary expression")
+                    self.unexpected_err(position.0, "Invalid unary expression")
                 }
 
                 visitor.stop();

@@ -8,7 +8,7 @@ pub struct FunctionScope<'ctx> {
     pub fn_value: FunctionValue<'ctx>,
     pub return_kind: Kind,
     pub arg_kind_names: Vec<KindName>,
-    pub arg_variables: Vec<(String, Kind, BasicValueEnum<'ctx>)>, // 形参信息，预编译的时候设置，真实编译的时候再生效
+    pub arg_variables: Vec<(String, Kind, BasicValueEnum<'ctx>, usize)>, // 形参信息，预编译的时候设置，真实编译的时候再生效
     pub entry_block: Option<BasicBlock<'ctx>>,
 }
 

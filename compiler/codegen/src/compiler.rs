@@ -100,15 +100,14 @@ impl<'ctx> Compiler<'ctx> {
                     if let Node::FunctionDeclaration {
                         id,
                         arguments,
-                        body,
                         return_kind,
                         ..
                     } = stat.deref()
                     {
-                        let (name, ..) = id.deref().read_identifier();
+                        let (name, .., pos) = id.deref().read_identifier();
                         let args = arguments.iter();
                         let args = args.map(|arg| {
-                            let (.., kind) = arg.deref().read_identifier();
+                            let (_, kind, ..) = arg.deref().read_identifier();
                             let kind_name = kind.read_kind_name().unwrap();
                             (match kind_name {
                                 KindName::Number => self.build_number_type().into(),
@@ -117,7 +116,13 @@ impl<'ctx> Compiler<'ctx> {
                             })
                         });
                         let args = args.collect();
-                        self.pre_compile_function(name, &args, arguments, return_kind);
+                        self.pre_compile_function(
+                            name,
+                            &args,
+                            arguments,
+                            return_kind,
+                            pos,
+                        );
                     }
                 }
 
@@ -140,12 +145,14 @@ impl<'ctx> Compiler<'ctx> {
                 ..
             } => {
                 // TODO
-                panic!("No implement");
+                panic!("TODO: No implement");
             }
-            Node::FunctionDeclaration { id, body, .. } => {
+            Node::FunctionDeclaration {
+                id, body, position, ..
+            } => {
                 let (name, ..) = id.deref().read_identifier();
                 let body = body.deref().read_block_body();
-                self.compile_function(name, body);
+                self.compile_function(name, body, position.1);
                 Terminator::None
             }
             Node::VariableDeclaration { id, init, .. } => {
@@ -176,7 +183,7 @@ impl<'ctx> Compiler<'ctx> {
             }
             Node::ContinueStatement { label, .. } => {
                 // TODO
-                panic!("No implement");
+                panic!("TODO: No implement");
             }
             _ => never(),
         }
@@ -189,9 +196,13 @@ impl<'ctx> Compiler<'ctx> {
         args: &Vec<BasicMetadataTypeEnum<'ctx>>,
         arguments: &Vec<Box<Node>>,
         return_kind: &Kind,
+        fn_id_pos: usize,
     ) {
         if self.scope.fns.has(name) {
-            panic!("A function named `{}` has already been defined", name);
+            self.unexpected_err(
+                fn_id_pos,
+                &format!("A function named `{}` has already been defined", name),
+            );
         }
 
         let fn_value = self.build_fn_value(name, return_kind, args.as_slice());
@@ -201,10 +212,11 @@ impl<'ctx> Compiler<'ctx> {
         let mut arg_kind_names = vec![];
         let mut arg_variables = vec![];
         for (i, arg) in fn_value.get_param_iter().enumerate() {
-            let (arg_name, kind) = arguments[i].deref().read_identifier();
+            let arg_node = arguments[i].deref();
+            let (arg_name, kind, pos) = arg_node.read_identifier();
             arg_kind_names.push(*kind.read_kind_name().unwrap());
             let arg_value = fn_value.get_nth_param(i as u32).unwrap();
-            arg_variables.push((arg_name.to_string(), *kind, arg_value));
+            arg_variables.push((arg_name.to_string(), *kind, arg_value, pos));
 
             // 为每个参数设置名称
             match kind.read_kind_name().unwrap() {
@@ -235,6 +247,7 @@ impl<'ctx> Compiler<'ctx> {
         &mut self,
         name: &str,
         body: &Vec<Box<Node>>,
+        pos: usize,
     ) -> FunctionValue<'ctx> {
         let pre_fn = self.scope.fns.get(name).unwrap().get_fn();
         let fn_value = pre_fn.fn_value;
@@ -245,8 +258,8 @@ impl<'ctx> Compiler<'ctx> {
         self.push_block_scope(entry_block);
 
         // 形参设置到作用域
-        for (arg_name, kind, arg_value) in arg_variables.iter() {
-            self.put_variable(arg_name, *kind, Some(*arg_value), true);
+        for (arg_name, kind, arg_value, pos) in arg_variables.iter() {
+            self.put_variable(arg_name, *kind, Some(*arg_value), true, *pos);
         }
 
         // 更新当前正在解析的函数
@@ -266,9 +279,8 @@ impl<'ctx> Compiler<'ctx> {
                 println!("\n======================= IR =======================\n");
                 self.module.print_to_stderr();
                 println!("\n");
-                panic!("Compile function failure");
             }
-            unsafe { fn_value.delete() }
+            self.unexpected_err(pos, "Function compile failure");
         }
 
         fn_value
@@ -323,11 +335,14 @@ impl<'ctx> Compiler<'ctx> {
         consequent: &Node,
         alternate: &Option<Box<Node>>,
     ) -> Terminator {
-        let condition_value = self.compile_expression(condition.deref()).into_int_value();
-        let infer_condition_kind = self.infer_expression_kind(condition.deref());
+        let infer_condition_kind = self.infer_expression_kind(condition);
         if *infer_condition_kind.read_kind_name().unwrap() != KindName::Boolean {
-            panic!("If condition expression must be a boolean type");
+            self.unexpected_err(
+                condition.read_position().0,
+                "If condition expression must be a boolean type",
+            );
         }
+        let condition_value = self.compile_expression(condition).into_int_value();
 
         let fn_value = self.current_fn.unwrap();
         let then_block = self.context.append_basic_block(fn_value, "then");
@@ -504,7 +519,7 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     pub fn compile_variable_statement(&mut self, id: &Node, init: &Node) {
-        let (id, mut kind) = id.read_identifier();
+        let (id, mut kind, pos) = id.read_identifier();
 
         // Note: 避免下面的临时变量生命周期不够长，临时借用变量
         let temp_borrowed;
@@ -513,6 +528,12 @@ impl<'ctx> Compiler<'ctx> {
             kind = &temp_borrowed;
         }
         let init_value = self.compile_expression(init);
-        self.put_variable(id, *kind, Some(init_value.as_basic_value_enum()), false);
+        self.put_variable(
+            id,
+            *kind,
+            Some(init_value.as_basic_value_enum()),
+            false,
+            pos,
+        );
     }
 }

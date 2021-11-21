@@ -92,7 +92,7 @@ impl Formatter {
                 code.push_str("(");
 
                 for (i, arg) in arguments.iter().enumerate() {
-                    let (arg_name, arg_kind) = arg.deref().read_identifier();
+                    let (arg_name, arg_kind, ..) = arg.deref().read_identifier();
                     code.push_str(arg_name);
                     code.push_str(" :");
                     code.push_str(&arg_kind.to_string());
@@ -112,7 +112,7 @@ impl Formatter {
             }
             Node::VariableDeclaration { id, init, .. } => {
                 code.push_str("var ");
-                let (name, kind) = id.deref().read_identifier();
+                let (name, kind, ..) = id.deref().read_identifier();
                 code.push_str(name);
                 code.push_str(" = ");
                 code.push_str(&self.format_node(init.deref()));

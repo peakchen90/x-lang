@@ -124,9 +124,13 @@ impl Node {
     }
 
     // 读取一个标识符的名称及类型
-    pub fn read_identifier(&self) -> (&str, &Kind) {
+    pub fn read_identifier(&self) -> (&str, &Kind, usize) {
         match self {
-            Node::Identifier { name, kind, .. } => (name, kind),
+            Node::Identifier {
+                name,
+                kind,
+                position,
+            } => (name, kind, position.0),
             _ => panic!("Error"),
         }
     }
