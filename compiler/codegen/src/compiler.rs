@@ -24,6 +24,7 @@ pub struct Compiler<'ctx> {
     pub execution_engine: ExecutionEngine<'ctx>,
     pub print_fns: HashMap<&'static str, FunctionValue<'ctx>>,
     pub current_fn: Option<FunctionValue<'ctx>>,
+    pub current_return_kind_name: Option<KindName>,
     pub is_debug: bool,
 }
 
@@ -47,6 +48,7 @@ impl<'ctx> Compiler<'ctx> {
             labels,
             execution_engine,
             current_fn: None,
+            current_return_kind_name: None,
             print_fns: HashMap::new(),
             is_debug,
         };
@@ -147,12 +149,14 @@ impl<'ctx> Compiler<'ctx> {
                 // TODO
                 panic!("TODO: No implement");
             }
-            Node::FunctionDeclaration {
-                id, body, position, ..
-            } => {
+            Node::FunctionDeclaration { id, body, .. } => {
                 let (name, ..) = id.deref().read_identifier();
-                let body = body.deref().read_block_body();
-                self.compile_function(name, body, position.1);
+                let body = body.deref();
+                self.compile_function(
+                    name,
+                    body.read_block_body(),
+                    body.read_position().0,
+                );
                 Terminator::None
             }
             Node::VariableDeclaration { id, init, .. } => {
@@ -160,8 +164,8 @@ impl<'ctx> Compiler<'ctx> {
                 Terminator::None
             }
             Node::BlockStatement { body, .. } => self.compile_block_statement(body, true),
-            Node::ReturnStatement { argument, .. } => {
-                self.compile_return_statement(argument);
+            Node::ReturnStatement { argument, position } => {
+                self.compile_return_statement(argument, position.1);
                 Terminator::Return
             }
             Node::ExpressionStatement { expression, .. } => {
@@ -249,12 +253,13 @@ impl<'ctx> Compiler<'ctx> {
         &mut self,
         name: &str,
         body: &Vec<Box<Node>>,
-        pos: usize,
+        body_pos: usize,
     ) -> FunctionValue<'ctx> {
         let pre_fn = self.scope.fns.get(name).unwrap().get_fn();
         let fn_value = pre_fn.fn_value;
         let entry_block = pre_fn.entry_block.unwrap();
         let arg_variables = pre_fn.arg_variables.clone();
+        let return_kind_name = *pre_fn.return_kind.read_return_kind_name();
 
         // 作用域入栈
         self.push_block_scope(entry_block);
@@ -264,12 +269,22 @@ impl<'ctx> Compiler<'ctx> {
             self.put_variable(arg_name, *kind, Some(*arg_value), true, *pos);
         }
 
-        // 更新当前正在解析的函数
+        // 更新当前正在解析的函数及返回值
         self.current_fn = Some(fn_value);
+        self.current_return_kind_name = Some(return_kind_name);
 
         // 编译函数体
         let terminator = self.compile_block_statement(body, false);
         if !terminator.is_return() {
+            if return_kind_name != KindName::Void {
+                self.unexpected_err(
+                    body_pos,
+                    &format!(
+                        "Expected to return `{}`, but implicitly returns `void`",
+                        return_kind_name.to_string(),
+                    ),
+                )
+            }
             self.builder.build_return(None);
         }
 
@@ -282,7 +297,7 @@ impl<'ctx> Compiler<'ctx> {
                 self.module.print_to_stderr();
                 println!("\n");
             }
-            self.unexpected_err(pos, "Function compile failure");
+            panic!("Internal Error: function `{}` compile failure", name)
         }
 
         fn_value
@@ -491,16 +506,33 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    pub fn compile_return_statement(&mut self, argument: &Option<Box<Node>>) {
-        match argument {
+    pub fn compile_return_statement(&mut self, argument: &Option<Box<Node>>, pos: usize) {
+        let mut pos = pos;
+        let fn_kind_name = self.current_return_kind_name.unwrap();
+        let actual_kind_name = match argument {
             Some(v) => {
+                let node = v.deref();
                 self.builder
-                    .build_return(Some(&self.compile_expression(v.deref())));
+                    .build_return(Some(&self.compile_expression(node)));
+                pos = node.read_position().0;
+                *self.infer_expression_kind(node).read_kind_name().unwrap()
             }
             None => {
                 self.builder.build_return(None);
+                KindName::Void
             }
         };
+
+        if fn_kind_name != actual_kind_name {
+            self.unexpected_err(
+                pos,
+                &format!(
+                    "Expected `{}`, found `{}`",
+                    fn_kind_name.to_string(),
+                    actual_kind_name.to_string()
+                ),
+            )
+        }
     }
 
     pub fn compile_break_statement(&mut self, label: &Option<String>) {

@@ -211,7 +211,7 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    // 推断表达式的返回类型
+    // 推断表达式的返回类型（一定是精确的，而且不能为 void 类型）
     pub fn infer_expression_kind(&self, expr: &Node) -> Kind {
         let mut ret_kind = Kind::None;
 
