@@ -129,13 +129,15 @@ impl<'ctx> Compiler<'ctx> {
     // 编译一条语句，返回语句中是否被终结了
     pub fn compile_statement(&mut self, node: &Node) -> Terminator {
         match node {
-            Node::FunctionDeclaration {
-                id,
-                arguments,
-                body,
-                return_kind,
-                ..
+            Node::ImportDeclaration {
+                source,
+                is_std_source,
+                specifiers,
             } => {
+                // TODO
+                panic!("No implement");
+            }
+            Node::FunctionDeclaration { id, body, .. } => {
                 let (name, ..) = id.deref().read_identifier();
                 let body = body.deref().read_block_body();
                 self.compile_function(name, body);
@@ -167,7 +169,8 @@ impl<'ctx> Compiler<'ctx> {
                 Terminator::Break
             }
             Node::ContinueStatement { label } => {
-                panic!("No implement"); // TODO
+                // TODO
+                panic!("No implement");
             }
             _ => never(),
         }

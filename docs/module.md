@@ -43,7 +43,7 @@ fn main() {
 - `import mod.{*, x as foo}`: 导入 mod 模块内所有被 `pub` 修饰的方法。其中：`x` 被重命名为 `foo`
 
 ### 导入内置标准库模块
-> 相比自定义模块，导入内置标准库模块需要使用 `<>` 包裹模块路径，其他用法相同
+> 相比自定义模块，导入内置标准库模块需要使用 `<...>` 包裹模块路径，其他用法相同
 - `import <std/string>.{x,y,z}`
 - `import <std/string>.{*}`
 - `import <std/string>`
