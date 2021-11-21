@@ -22,10 +22,10 @@ impl<'a> Parser<'a> {
                                     omit_tailing_semi = true;
                                     self.parse_function_declaration(true)
                                 }
-                                _ => self.unexpected(),
+                                _ => self.unexpected(None),
                             }
                         } else {
-                            self.unexpected();
+                            self.unexpected(None);
                         }
                     }
                     b"import" => self.parse_import_declaration(),
@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
                     }
                     b"break" => self.parse_break_statement(),
                     b"continue" => self.parse_continue_statement(),
-                    _ => self.unexpected(),
+                    _ => self.unexpected(None),
                 }
             }
             TokenType::Identifier => {
@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
                             omit_tailing_semi = true;
                             self.parse_loop_statement(Some(maybe_label))
                         }
-                        _ => self.unexpected(),
+                        _ => self.unexpected(None),
                     }
                 } else {
                     self.parse_expression_statement()
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
                 omit_tailing_semi = true;
                 self.parse_block_statement(false)
             }
-            _ => self.unexpected(),
+            _ => self.unexpected(None),
         };
 
         let mut tail_semi_count = 0;
@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
             && !self.is_token(TokenType::EOF)
             && !self.is_token(TokenType::BraceR)
         {
-            self.unexpected();
+            self.unexpected(None);
         }
 
         statement

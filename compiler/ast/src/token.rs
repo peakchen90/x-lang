@@ -374,7 +374,7 @@ impl<'a> Parser<'a> {
                 if self.index == self.chars.len() {
                     Token::new(self, TokenType::EOF, "EOF", (self.index, self.index))
                 } else {
-                    self.unexpected_pos(self.index);
+                    self.unexpected_pos(self.index, None);
                 }
             }
         };

@@ -135,7 +135,7 @@ impl<'a> Parser<'a> {
     // 期望当前 token 类型为指定类型，否则抛错
     pub fn expect(&mut self, token_type: TokenType) {
         if !self.is_token(token_type) {
-            self.unexpected();
+            self.unexpected(None);
         }
     }
 
@@ -156,7 +156,7 @@ impl<'a> Parser<'a> {
     }
 
     // 抛出一个 unexpected 错误
-    pub fn unexpected_pos(&mut self, pos: usize) -> ! {
+    pub fn unexpected_pos(&mut self, pos: usize, msg: Option<&str>) -> ! {
         let mut is_end_of_file = false;
         let mut message = match self.chars.get(pos) {
             None => {
@@ -166,6 +166,10 @@ impl<'a> Parser<'a> {
             Some(ch) => format!("Unexpected token `{}`", ch),
         };
 
+        if let Some(msg) = msg {
+            message = msg.to_string();
+        }
+
         let position = print_error_frame(self.input, pos, &message);
         if !is_end_of_file {
             let (line, column) = position.unwrap();
@@ -174,29 +178,28 @@ impl<'a> Parser<'a> {
         panic!("{}", message)
     }
 
-    // 将当前的读取的 token 抛出 unexpected 错误
-    pub fn unexpected(&mut self) -> ! {
-        self.unexpected_token(self.current_token.clone())
+    // 抛出一个 unexpected token 错误
+    pub fn unexpected(&mut self, msg: Option<&str>) -> ! {
+        self.unexpected_token(self.current_token.clone(), msg)
     }
 
     // 抛出一个 unexpected token 错误
-    pub fn unexpected_token(&mut self, token: Token) -> ! {
+    pub fn unexpected_token(&mut self, token: Token, msg: Option<&str>) -> ! {
         let mut message = String::new();
-        let mut pos = 0;
         let mut is_end_of_file = false;
         match token.token_type {
             TokenType::EOF => {
                 is_end_of_file = true;
-                pos = self.chars.len();
                 message.push_str("Unexpected end of file");
             }
-            _ => {
-                pos = token.start;
-                message.push_str(&format!("Unexpected token `{}`", token.value))
-            }
+            _ => message.push_str(&format!("Unexpected token `{}`", token.value)),
         };
 
-        let position = print_error_frame(self.input, pos, &message);
+        if let Some(msg) = msg {
+            message = msg.to_string();
+        }
+
+        let position = print_error_frame(self.input, token.start, &message);
         if !is_end_of_file {
             let (line, column) = position.unwrap();
             message.push_str(&format!(" ({}:{})", line, column))

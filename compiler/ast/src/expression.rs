@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
 
         match self.current_token.token_type {
             TokenType::Sub | TokenType::Plus => {
-                panic!("No implement")
+                panic!("TODO: No implement")
             }
             TokenType::LogicNot | TokenType::BitNot => {
                 let operator = self.current_token.value.to_string();
@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 // TODO TRY
-                panic!("Unary op try test");
+                panic!("TODO: Unary op try test");
                 // self.parse_atom_expression()
             }
         }
@@ -67,21 +67,27 @@ impl<'a> Parser<'a> {
         if precedence > 0 && precedence > current_precedence {
             let operator = self.current_token.value.to_string();
             if operator == "=" {
-                self.unexpected();
+                self.unexpected(None);
             }
+            let operator_token = self.current_token.clone();
             self.next_token();
 
             // 解析可能更高优先级的右侧表达式，如: `1 + 2 * 3` 将解析 `2 * 3` 作为右值
             let maybe_higher_precedence_expr =
-                self.parse_maybe_binary_expression(precedence)?;
+                self.parse_maybe_binary_expression(precedence);
+            if maybe_higher_precedence_expr.is_none() {
+                self.unexpected_token(operator_token, Some("Incomplete binary expression"));
+            }
             let right = self.parse_binary_expression_precedence(
-                maybe_higher_precedence_expr,
+                maybe_higher_precedence_expr.unwrap(),
                 precedence,
-            )?;
-
+            );
+            if right.is_none() {
+                self.unexpected_token(operator_token, Some("Incomplete binary expression"));
+            }
             let node = Node::BinaryExpression {
                 left: Box::new(left),
-                right: Box::new(right),
+                right: Box::new(right.unwrap()),
                 operator,
             };
 
