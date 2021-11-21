@@ -29,9 +29,9 @@ fn main() {
 ## 深入 `import` 关键字
 
 ### 导入其他目录的模块
+> Note: 目录名称仅支持合法的标识符
 - `import mod/b.{x}`
 - `import ../mod/b.{y}`
-- `import /absolute/mod/b.{z}`
 
 ### 同时导入多个方法
 - `import mod.{x,y,z}`

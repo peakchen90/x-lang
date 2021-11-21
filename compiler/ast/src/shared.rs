@@ -107,7 +107,7 @@ impl Kind {
     pub fn read_return_kind_name(&self) -> &KindName {
         match self {
             Kind::Some(v) => v,
-            Kind::Infer => panic!("Return type can not be infer type"),
+            Kind::Infer => panic!("Error"),
             Kind::None => &KindName::Void,
         }
     }

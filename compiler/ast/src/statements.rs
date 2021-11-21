@@ -96,18 +96,20 @@ impl<'a> Parser<'a> {
     // 解析 import 语句
     pub fn parse_import_declaration(&mut self) -> Node {
         self.validate_program_root("Import declaration");
+        let import_token = self.current_token.clone();
 
-        self.skip_space();
-        self.skip_comment();
+        self.skip_space(false);
         let mut source = String::new();
         let mut is_std_source = false;
         let mut specifiers = None;
 
         let mut has_std_ending = false;
+        let mut mark_pos = import_token.end;
 
         if self.current_char == '<' {
             is_std_source = true;
             self.move_index(1);
+            mark_pos = self.index;
         }
 
         // parse import source
@@ -126,17 +128,20 @@ impl<'a> Parser<'a> {
                 self.move_index(1);
                 break;
             }
-            if self.is_space_char() {
+            if !match self.current_char {
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '$' | '.' | '/' => true,
+                _ => false,
+            } {
                 break;
             }
             source.push(self.current_char);
             self.move_index(1);
         }
         if is_std_source && !has_std_ending {
-            panic!("Invalid import source")
+            self.unexpected_err(mark_pos, "Invalid import source");
         }
         if source.is_empty() {
-            panic!("Invalid import declaration, missing source")
+            self.unexpected_err(import_token.end, "Missing import source");
         }
 
         // parse import specifiers
@@ -149,14 +154,17 @@ impl<'a> Parser<'a> {
                 let mut local = None;
 
                 if self.is_token(TokenType::Star) {
+                    mark_pos = self.current_token.start;
                     self.next_token();
                 } else {
                     self.expect(TokenType::Identifier);
+                    mark_pos = self.current_token.start;
                     self.next_token();
                     if self.is_keyword("as") {
                         self.next_token();
                         self.expect(TokenType::Identifier);
                         local = Some(self.current_token.value.to_string());
+                        mark_pos = self.current_token.start;
                         self.next_token();
                     }
                 }
@@ -168,7 +176,10 @@ impl<'a> Parser<'a> {
                 };
                 let spec = spec.clone();
                 if specifier_set.get(&spec).is_some() {
-                    panic!("The import specifier `{}` already exists", spec);
+                    self.unexpected_err(
+                        mark_pos,
+                        &format!("The import specifier `{}` already exists", spec),
+                    )
                 }
                 specifier_set.insert(spec);
 
@@ -196,7 +207,6 @@ impl<'a> Parser<'a> {
     pub fn parse_function_declaration(&mut self, is_pub: bool) -> Node {
         self.validate_program_root("Function declaration");
 
-        self.allow_return = true;
         self.next_token();
 
         // id
@@ -249,7 +259,6 @@ impl<'a> Parser<'a> {
 
         // body
         let body = Box::new(self.parse_block_statement(true));
-        self.allow_return = false;
 
         Node::FunctionDeclaration {
             id,
@@ -336,9 +345,6 @@ impl<'a> Parser<'a> {
     // 解析 return 语句
     pub fn parse_return_statement(&mut self) -> Node {
         self.validate_inside_fn();
-        if !self.allow_return {
-            panic!("Return can only be use in functions")
-        }
         self.next_token();
 
         let argument = self.parse_expression();
@@ -407,7 +413,7 @@ impl<'a> Parser<'a> {
     pub fn parse_break_statement(&mut self) -> Node {
         self.validate_inside_fn();
         if self.current_loop_level == 0 {
-            panic!("The `break` can only be use in loop statements")
+            self.unexpected(Some("The `break` can only be use in loop statements"));
         }
 
         self.next_token();
@@ -425,7 +431,7 @@ impl<'a> Parser<'a> {
     pub fn parse_continue_statement(&mut self) -> Node {
         self.validate_inside_fn();
         if self.current_loop_level == 0 {
-            panic!("The `continue` can only be use in loop statements")
+            self.unexpected(Some("The `continue` can only be use in loop statements"));
         }
 
         self.next_token();

@@ -12,7 +12,6 @@ pub struct Parser<'a> {
     pub current_char: char,         // 当前字符
     pub current_token: Token,       // 当前 token
     pub allow_expr: bool,           // 当前上下文是否允许表达式
-    pub allow_return: bool,         // 当前上下文是否允许 return 语句
     pub current_block_level: usize, // 当前进入到第几层块级作用域
     pub current_loop_level: usize,  // 当前进入到第几层循环块
     pub node: Option<Node>,         // 解析的 ast
@@ -36,7 +35,6 @@ impl<'a> Parser<'a> {
             current_char: ' ',
             current_token: begin_token,
             allow_expr: true,
-            allow_return: false,
             current_block_level: 0,
             current_loop_level: 0,
             node: None,
@@ -94,22 +92,22 @@ impl<'a> Parser<'a> {
 
     // 检查下一个有效字符是否是指定的字符
     pub fn check_next_char(&mut self, char: char) -> bool {
-        self.skip_space();
+        self.skip_space(true);
         self.skip_comment();
         self.current_char == char
     }
 
     // 验证是否在函数内部，否则抛错
-    pub fn validate_inside_fn(&self) {
+    pub fn validate_inside_fn(&mut self) {
         if self.current_block_level == 0 {
-            panic!("Statements can only be used inside functions")
+            self.unexpected(Some("Cannot be used outside of functions"));
         }
     }
 
     // 检查是否在程序根层级下，否则抛错
-    pub fn validate_program_root(&self, title: &str) {
+    pub fn validate_program_root(&mut self, title: &str) {
         if self.current_block_level > 0 {
-            panic!("{} can only be in the root of the program", title)
+            self.unexpected(Some(&format!("{} can only be defined in the root", title)));
         }
     }
 

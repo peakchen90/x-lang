@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
     // 读取下一个 token
     pub fn next_token(&mut self) {
         self.is_seen_newline = false;
-        self.skip_space();
+        self.skip_space(true);
         self.skip_comment();
 
         let token = match self.current_char {
@@ -429,16 +429,23 @@ impl<'a> Parser<'a> {
     }
 
     // 跳过空白字符
-    pub fn skip_space(&mut self) {
+    pub fn skip_space(&mut self, is_skip_newline: bool) {
         while self.is_space_char() {
             // 标记已经换行过
+            let mut should_break = false;
             if self.is_newline_char() {
                 self.is_seen_newline = true;
+                if !is_skip_newline {
+                    should_break = true;
+                }
             }
 
             if self.check_valid_index() {
                 self.move_index(1);
             } else {
+                break;
+            }
+            if should_break {
                 break;
             }
         }
@@ -451,7 +458,7 @@ impl<'a> Parser<'a> {
             while self.check_valid_index() && !self.is_newline_char() {
                 self.move_index(1);
             }
-            self.skip_space();
+            self.skip_space(true);
         }
     }
 }
