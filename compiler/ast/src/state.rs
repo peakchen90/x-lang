@@ -1,4 +1,4 @@
-use crate::code_frame::unexpected_err;
+use crate::code_frame::print_error_frame;
 use crate::node::Node;
 use crate::shared::Kind;
 use crate::token::{Token, TokenType};
@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
     // 打印错误帧信息并抛出异常
     pub fn unexpected_err(&mut self, pos: usize, msg: &str) -> ! {
         let mut message = msg.to_string();
-        let position = unexpected_err(self.input, pos, &message);
+        let position = print_error_frame(self.input, pos, &message);
 
         if let Some((line, column)) = position {
             message.push_str(&format!(" ({}:{})", line, column))

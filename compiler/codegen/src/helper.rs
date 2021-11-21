@@ -7,7 +7,7 @@ use inkwell::comdat::ComdatSelectionKind;
 use inkwell::context::Context;
 use inkwell::types::*;
 use inkwell::values::*;
-use x_lang_ast::code_frame::unexpected_err;
+use x_lang_ast::code_frame::print_error_frame;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::{Kind, KindName};
 use x_lang_ast::visitor::Visitor;
@@ -320,7 +320,7 @@ impl<'ctx> Compiler<'ctx> {
     // 打印错误帧信息并抛出异常
     pub fn unexpected_err(&self, pos: usize, msg: &str) -> ! {
         let mut message = msg.to_string();
-        let position = unexpected_err(self.source, pos, &message);
+        let position = print_error_frame(self.source, pos, &message);
 
         if let Some((line, column)) = position {
             message.push_str(&format!(" ({}:{})", line, column))
