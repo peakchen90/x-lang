@@ -1,3 +1,4 @@
+use crate::code_frame::{print_error_frame};
 use crate::node::Node;
 use crate::token::{Token, TokenType};
 
@@ -163,6 +164,7 @@ impl<'a> Parser<'a> {
                 column += 1;
             }
         }
+
         panic!(
             "Unexpected `{:?}` at ({}, {})",
             self.current_token, line, column
