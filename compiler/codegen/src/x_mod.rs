@@ -18,9 +18,7 @@ pub struct XModManager<'ctx> {
     pub main_mod: XMod<'ctx>,
 }
 
-impl<'ctx> XMod<'ctx> {
-
-}
+impl<'ctx> XMod<'ctx> {}
 
 /// test
 pub fn x_mod() {

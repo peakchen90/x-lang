@@ -10,13 +10,14 @@ use x_lang_ast::shared::{Kind, KindName};
 impl<'ctx> Compiler<'ctx> {
     pub fn compile_expression(&self, node: &Node) -> BasicValueEnum<'ctx> {
         match node {
-            Node::CallExpression { callee, arguments } => {
-                self.compile_call_expression(callee.deref(), arguments)
-            }
+            Node::CallExpression {
+                callee, arguments, ..
+            } => self.compile_call_expression(callee.deref(), arguments),
             Node::BinaryExpression {
                 left,
                 right,
                 operator,
+                ..
             } => {
                 let left_kind = self.infer_expression_kind(left.deref());
                 let right_kind = self.infer_expression_kind(right.deref());
@@ -35,7 +36,9 @@ impl<'ctx> Compiler<'ctx> {
                     panic!("Invalid binary expression")
                 }
             }
-            Node::UnaryExpression { argument, operator } => {
+            Node::UnaryExpression {
+                argument, operator, ..
+            } => {
                 let kind = self.infer_expression_kind(argument.deref());
                 let kind_name = *kind.read_kind_name().unwrap();
                 let argument = self.compile_expression(argument.deref());
@@ -51,6 +54,7 @@ impl<'ctx> Compiler<'ctx> {
                 left,
                 right,
                 operator,
+                ..
             } => {
                 let (left_var, ..) = left.deref().read_identifier();
                 let ptr = self.get_declare_var_ptr(left_var);
@@ -68,10 +72,10 @@ impl<'ctx> Compiler<'ctx> {
                     None => panic!("Can not get value on void type"),
                 }
             }
-            Node::NumberLiteral { value } => {
+            Node::NumberLiteral { value, .. } => {
                 self.build_number_value(*value).as_basic_value_enum()
             }
-            Node::BooleanLiteral { value } => {
+            Node::BooleanLiteral { value, .. } => {
                 self.build_bool_value(*value).as_basic_value_enum()
             }
             _ => never(),

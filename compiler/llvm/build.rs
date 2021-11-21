@@ -24,9 +24,10 @@ fn main() {
     cfg.warnings(false);
 
     // link LLVM
-    let cxxflags = run_command(LLVM_CONFIG_PATH, vec![
-        "--cxxflags", "--ldflags", "--system-libs", "--libs", "core",
-    ]);
+    let cxxflags = run_command(
+        LLVM_CONFIG_PATH,
+        vec!["--cxxflags", "--ldflags", "--system-libs", "--libs", "core"],
+    );
     for i in cxxflags.iter() {
         cfg.flag(i);
     }

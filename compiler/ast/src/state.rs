@@ -1,5 +1,6 @@
 use crate::code_frame::print_error_frame;
 use crate::node::Node;
+use crate::shared::Kind;
 use crate::token::{Token, TokenType};
 
 #[derive(Debug)]
@@ -51,7 +52,10 @@ impl<'a> Parser<'a> {
             let stat = self.parse_statement();
             body.push(Box::new(stat));
         }
-        Node::Program { body }
+        Node::Program {
+            position: (0, self.chars.len()),
+            body,
+        }
     }
 
     // 检查光标是否超过最大值
@@ -129,6 +133,15 @@ impl<'a> Parser<'a> {
     // 当前字符是否是空白字符
     pub fn is_space_char(&self) -> bool {
         self.current_char == ' ' || self.current_char == '\t' || self.is_newline_char()
+    }
+
+    // 生成 Identifier 节点
+    pub fn gen_identifier(&self, token: Token, kind: Kind) -> Node {
+        Node::Identifier {
+            position: (token.start, token.end),
+            name: token.value,
+            kind,
+        }
     }
 
     // 期望当前 token 类型为指定类型，否则抛错

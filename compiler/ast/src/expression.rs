@@ -1,7 +1,7 @@
 use crate::node::Node;
 use crate::shared::Kind;
 use crate::state::Parser;
-use crate::token::TokenType;
+use crate::token::{Token, TokenType};
 
 impl<'a> Parser<'a> {
     // 解析表达式
@@ -49,9 +49,11 @@ impl<'a> Parser<'a> {
                 if argument.is_none() {
                     self.unexpected_token(op_token, Some("Incomplete unary expression"));
                 }
+                let argument = argument.unwrap();
                 Some(Node::UnaryExpression {
-                    argument: Box::new(argument.unwrap()),
+                    position: (op_token.start, argument.read_position().1),
                     operator,
+                    argument: Box::new(argument),
                 })
             }
             _ => self.parse_atom_expression(),
@@ -88,10 +90,12 @@ impl<'a> Parser<'a> {
             if right.is_none() {
                 self.unexpected_token(op_token, Some("Incomplete binary expression"));
             }
+            let right = right.unwrap();
             let node = Node::BinaryExpression {
-                left: Box::new(left),
-                right: Box::new(right.unwrap()),
+                position: (left.read_position().0, right.read_position().1),
                 operator,
+                left: Box::new(left),
+                right: Box::new(right),
             };
 
             // 将已经解析的二元表达式作为左值，然后递归解析后面可能的同等优先级或低优先级的表达式作为右值
@@ -104,7 +108,7 @@ impl<'a> Parser<'a> {
 
     // 解析一个原子表达式，如: `foo()`, `3.14`, `var1`, `var2 = expr`, `true`
     pub fn parse_atom_expression(&mut self) -> Option<Node> {
-        let value = self.current_token.value.to_string();
+        let token = self.current_token.clone();
         match self.current_token.token_type {
             TokenType::Identifier => {
                 self.next_token();
@@ -112,13 +116,10 @@ impl<'a> Parser<'a> {
                 let next_value = next_token.value.to_string();
 
                 match next_token.token_type {
-                    TokenType::ParenL => self.parse_call_expression(&value),
+                    TokenType::ParenL => self.parse_call_expression(token),
                     // 赋值表达式
                     TokenType::Assign => {
-                        let left = Box::new(Node::Identifier {
-                            name: value,
-                            kind: Kind::Infer,
-                        });
+                        let left = self.gen_identifier(token, Kind::Infer);
                         let op_token = self.current_token.clone();
                         self.next_token();
 
@@ -129,28 +130,29 @@ impl<'a> Parser<'a> {
                                 Some("Missing initial value"),
                             );
                         }
+                        let right = right.unwrap();
                         Some(Node::AssignmentExpression {
-                            left,
-                            right: Box::new(right.unwrap()),
+                            position: (left.read_position().0, right.read_position().1),
                             operator: next_value,
+                            left: Box::new(left),
+                            right: Box::new(right),
                         })
                     }
-                    _ => Some(Node::Identifier {
-                        name: value,
-                        kind: Kind::Infer,
-                    }),
+                    _ => Some(self.gen_identifier(token, Kind::Infer)),
                 }
             }
             TokenType::Number => {
                 self.next_token();
                 Some(Node::NumberLiteral {
-                    value: value.parse().unwrap(),
+                    position: (token.start, token.end),
+                    value: token.value.parse().unwrap(),
                 })
             }
             TokenType::Boolean => {
                 self.next_token();
                 Some(Node::BooleanLiteral {
-                    value: value == "true",
+                    position: (token.start, token.end),
+                    value: token.value == "true",
                 })
             }
             _ => None,
@@ -158,11 +160,9 @@ impl<'a> Parser<'a> {
     }
 
     // 解析函数调用
-    pub fn parse_call_expression(&mut self, callee_name: &str) -> Option<Node> {
-        let callee = Box::new(Node::Identifier {
-            name: callee_name.to_string(),
-            kind: Kind::None,
-        });
+    pub fn parse_call_expression(&mut self, callee_token: Token) -> Option<Node> {
+        let start = callee_token.start;
+        let callee = Box::new(self.gen_identifier(callee_token, Kind::None));
 
         // arguments
         let mut arguments = vec![];
@@ -175,8 +175,13 @@ impl<'a> Parser<'a> {
             arguments.push(Box::new(arg.unwrap()));
             self.consume(TokenType::Comma);
         }
+        let end = self.current_token.end;
         self.consume_or_panic(TokenType::ParenR);
 
-        Some(Node::CallExpression { callee, arguments })
+        Some(Node::CallExpression {
+            position: (start, end),
+            callee,
+            arguments,
+        })
     }
 }

@@ -1,5 +1,4 @@
 ///! build-in impl
-
 use crate::helper::never;
 
 pub extern "C" fn system_print_newline() {

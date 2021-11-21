@@ -83,7 +83,9 @@ impl PartialEq for Kind {
 
 impl Kind {
     pub fn create(kind_str: &str) -> Self {
-        KindName::from(kind_str, true).expect("Invalid kind string").into()
+        KindName::from(kind_str, true)
+            .expect("Invalid kind string")
+            .into()
     }
 
     // 类型是否是精确的

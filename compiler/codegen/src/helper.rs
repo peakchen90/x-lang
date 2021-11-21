@@ -230,6 +230,7 @@ impl<'ctx> Compiler<'ctx> {
                 left,
                 right,
                 operator,
+                ..
             } => {
                 let left_kind = self.infer_expression_kind(left.deref());
                 let right_kind = self.infer_expression_kind(right.deref());
@@ -259,7 +260,9 @@ impl<'ctx> Compiler<'ctx> {
 
                 visitor.stop();
             }
-            Node::UnaryExpression { argument, operator } => {
+            Node::UnaryExpression {
+                argument, operator, ..
+            } => {
                 let kind = self.infer_expression_kind(argument.deref());
                 let kind_name = *kind.read_kind_name().unwrap();
                 if kind_name == KindName::Number {
@@ -282,7 +285,7 @@ impl<'ctx> Compiler<'ctx> {
                 ret_kind = self.infer_expression_kind(left.deref());
                 visitor.stop();
             }
-            Node::Identifier { name, kind } => match kind {
+            Node::Identifier { name, kind, .. } => match kind {
                 Kind::Some(_) => {
                     ret_kind = *kind;
                     visitor.stop();

@@ -97,6 +97,8 @@ impl<'a> Parser<'a> {
     pub fn parse_import_declaration(&mut self) -> Node {
         self.validate_program_root("Import declaration");
         let import_token = self.current_token.clone();
+        let start = import_token.start;
+        let mut end = import_token.end;
 
         self.skip_space(false);
         let mut source = String::new();
@@ -152,6 +154,8 @@ impl<'a> Parser<'a> {
             while self.check_valid_index() && !self.is_token(TokenType::BraceR) {
                 let imported = self.current_token.value.to_string();
                 let mut local = None;
+                let start = self.current_token.start;
+                let mut end = self.current_token.end;
 
                 if self.is_token(TokenType::Star) {
                     mark_pos = self.current_token.start;
@@ -165,6 +169,7 @@ impl<'a> Parser<'a> {
                         self.expect(TokenType::Identifier);
                         local = Some(self.current_token.value.to_string());
                         mark_pos = self.current_token.start;
+                        end = self.current_token.end;
                         self.next_token();
                     }
                 }
@@ -183,7 +188,11 @@ impl<'a> Parser<'a> {
                 }
                 specifier_set.insert(spec);
 
-                let specifier = Node::ImportSpecifier { imported, local };
+                let specifier = Node::ImportSpecifier {
+                    position: (start, end),
+                    imported,
+                    local,
+                };
                 specifiers.push(Box::new(specifier));
 
                 // maybe has next specifier
@@ -191,12 +200,15 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
+            end = self.current_token.end;
             self.consume_or_panic(TokenType::BraceR);
         } else {
+            end = self.index;
             self.next_token();
         }
 
         Node::ImportDeclaration {
+            position: (start, end),
             source,
             is_std_source,
             specifiers,
@@ -207,21 +219,19 @@ impl<'a> Parser<'a> {
     pub fn parse_function_declaration(&mut self, is_pub: bool) -> Node {
         self.validate_program_root("Function declaration");
 
+        let start = self.current_token.start;
         self.next_token();
 
         // id
         self.expect(TokenType::Identifier);
-        let id = Box::new(Node::Identifier {
-            name: self.current_token.value.to_string(),
-            kind: Kind::None,
-        });
+        let id = Box::new(self.gen_identifier(self.current_token.clone(), Kind::None));
         self.next_token();
 
         // arguments
         let mut arguments = vec![];
         self.consume_or_panic(TokenType::ParenL);
         while self.check_valid_index() && self.is_token(TokenType::Identifier) {
-            let name = self.current_token.value.to_string();
+            let name_token = self.current_token.clone();
             self.next_token();
 
             // argument kind
@@ -233,10 +243,9 @@ impl<'a> Parser<'a> {
                 self.unexpected_kind(self.current_token.clone());
             }
 
-            arguments.push(Box::new(Node::Identifier {
-                name,
-                kind: kind_name.unwrap().into(),
-            }));
+            arguments.push(Box::new(
+                self.gen_identifier(name_token, kind_name.unwrap().into()),
+            ));
             self.next_token();
 
             // maybe has next argument
@@ -258,12 +267,13 @@ impl<'a> Parser<'a> {
         }
 
         // body
-        let body = Box::new(self.parse_block_statement(true));
+        let body = self.parse_block_statement(true);
 
         Node::FunctionDeclaration {
+            position: (start, body.read_position().1),
             id,
             arguments,
-            body,
+            body: Box::new(body),
             return_kind,
             is_pub,
         }
@@ -276,8 +286,12 @@ impl<'a> Parser<'a> {
         if expression.is_none() {
             self.unexpected(Some("Invalid expression"));
         }
-        let expression = Box::new(expression.unwrap());
-        Node::ExpressionStatement { expression }
+        let expression = expression.unwrap();
+        let position = expression.read_position();
+        Node::ExpressionStatement {
+            expression: Box::new(expression),
+            position,
+        }
     }
 
     // 解析块级语句
@@ -289,27 +303,33 @@ impl<'a> Parser<'a> {
         // 块级作用域层级 +1
         self.current_block_level += 1;
 
+        let start = self.current_token.start;
         let mut body = vec![];
         self.consume_or_panic(TokenType::BraceL);
         while self.check_valid_index() && !self.is_token(TokenType::BraceR) {
             body.push(Box::new(self.parse_statement()));
         }
+        let end = self.current_token.start;
         self.consume_or_panic(TokenType::BraceR);
 
         // 块级作用域层级 -1
         self.current_block_level -= 1;
 
-        Node::BlockStatement { body }
+        Node::BlockStatement {
+            position: (start, end),
+            body,
+        }
     }
 
     // 解析变量定义语句
     pub fn parse_variable_declaration(&mut self) -> Node {
         self.validate_inside_fn();
+        let start = self.current_token.start;
         self.next_token();
 
         // id
         self.expect(TokenType::Identifier);
-        let id_name = self.current_token.value.to_string();
+        let id_token = self.current_token.clone();
         self.next_token();
 
         // maybe variable kind
@@ -325,10 +345,7 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
 
-        let id = Box::new(Node::Identifier {
-            name: id_name,
-            kind,
-        });
+        let id = Box::new(self.gen_identifier(id_token, kind));
 
         // init
         let op_token = self.current_token.clone();
@@ -337,22 +354,33 @@ impl<'a> Parser<'a> {
         if init.is_none() {
             self.unexpected_token(op_token, Some("Missing initial value"));
         }
-        let init = Box::new(init.unwrap());
+        let init = init.unwrap();
 
-        Node::VariableDeclaration { id, init }
+        Node::VariableDeclaration {
+            position: (start, init.read_position().1),
+            id,
+            init: Box::new(init),
+        }
     }
 
     // 解析 return 语句
     pub fn parse_return_statement(&mut self) -> Node {
         self.validate_inside_fn();
+        let start = self.current_token.start;
+        let mut end = self.current_token.end;
         self.next_token();
 
         let argument = self.parse_expression();
+        let argument = match argument {
+            Some(v) => {
+                end = v.read_position().1;
+                Some(Box::new(v))
+            }
+            None => None,
+        };
         Node::ReturnStatement {
-            argument: match argument {
-                Some(v) => Some(Box::new(v)),
-                None => None,
-            },
+            position: (start, end),
+            argument,
         }
     }
 
@@ -366,6 +394,7 @@ impl<'a> Parser<'a> {
         }
 
         let if_token = self.current_token.clone();
+        let start = if_token.start;
         self.next_token();
 
         // condition
@@ -381,16 +410,20 @@ impl<'a> Parser<'a> {
 
         // consequent
         let consequent = self.parse_block_statement(false);
+        let mut end = consequent.read_position().1;
 
         // alternate
         let alternate = if self.is_keyword("else") {
             self.next_token();
-            Some(Box::new(self.parse_if_statement()))
+            let stat = self.parse_if_statement();
+            end = stat.read_position().1;
+            Some(Box::new(stat))
         } else {
             None
         };
 
         Node::IfStatement {
+            position: (start, end),
             condition: Box::new(condition.unwrap()),
             consequent: Box::new(consequent),
             alternate,
@@ -401,17 +434,25 @@ impl<'a> Parser<'a> {
     pub fn parse_loop_statement(&mut self, label: Option<String>) -> Node {
         self.validate_inside_fn();
         self.current_loop_level += 1;
+        let start = self.current_token.start;
 
         self.next_token();
-        let body = Box::new(self.parse_block_statement(false));
+        let body = self.parse_block_statement(false);
 
         self.current_loop_level -= 1;
-        Node::LoopStatement { label, body }
+        Node::LoopStatement {
+            position: (start, body.read_position().1),
+            label,
+            body: Box::new(body),
+        }
     }
 
     // 解析 break 语句
     pub fn parse_break_statement(&mut self) -> Node {
         self.validate_inside_fn();
+        let start = self.current_token.start;
+        let mut end = self.current_token.end;
+
         if self.current_loop_level == 0 {
             self.unexpected(Some("The `break` can only be use in loop statements"));
         }
@@ -419,27 +460,40 @@ impl<'a> Parser<'a> {
         self.next_token();
         let label = if self.is_token(TokenType::Identifier) {
             let label = Some(self.current_token.value.to_string());
+            end = self.current_token.end;
             self.next_token();
             label
         } else {
             None
         };
-        Node::BreakStatement { label }
+        Node::BreakStatement {
+            position: (start, end),
+            label,
+        }
     }
 
     // 解析 continue 语句
     pub fn parse_continue_statement(&mut self) -> Node {
         self.validate_inside_fn();
+        let start = self.current_token.start;
+        let mut end = self.current_token.end;
+
         if self.current_loop_level == 0 {
             self.unexpected(Some("The `continue` can only be use in loop statements"));
         }
 
         self.next_token();
         let label = if self.is_token(TokenType::Identifier) {
-            Some(self.current_token.value.to_string())
+            let label = Some(self.current_token.value.to_string());
+            end = self.current_token.end;
+            self.next_token();
+            label
         } else {
             None
         };
-        Node::ContinueStatement { label }
+        Node::ContinueStatement {
+            position: (start, end),
+            label,
+        }
     }
 }

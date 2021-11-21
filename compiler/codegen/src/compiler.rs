@@ -90,7 +90,7 @@ impl<'ctx> Compiler<'ctx> {
         self.inject_build_in();
 
         match node {
-            Node::Program { body } => {
+            Node::Program { body, .. } => {
                 // 预编译
                 for stat in body.iter() {
                     if let Node::FunctionDeclaration {
@@ -133,6 +133,7 @@ impl<'ctx> Compiler<'ctx> {
                 source,
                 is_std_source,
                 specifiers,
+                ..
             } => {
                 // TODO
                 panic!("No implement");
@@ -143,16 +144,16 @@ impl<'ctx> Compiler<'ctx> {
                 self.compile_function(name, body);
                 Terminator::None
             }
-            Node::VariableDeclaration { id, init } => {
+            Node::VariableDeclaration { id, init, .. } => {
                 self.compile_variable_statement(id.deref(), init.deref());
                 Terminator::None
             }
-            Node::BlockStatement { body } => self.compile_block_statement(body, true),
-            Node::ReturnStatement { argument } => {
+            Node::BlockStatement { body, .. } => self.compile_block_statement(body, true),
+            Node::ReturnStatement { argument, .. } => {
                 self.compile_return_statement(argument);
                 Terminator::Return
             }
-            Node::ExpressionStatement { expression } => {
+            Node::ExpressionStatement { expression, .. } => {
                 self.compile_expression(expression.deref());
                 Terminator::None
             }
@@ -160,15 +161,16 @@ impl<'ctx> Compiler<'ctx> {
                 condition,
                 consequent,
                 alternate,
+                ..
             } => self.compile_if_statement(condition, consequent, alternate),
-            Node::LoopStatement { label, body } => {
+            Node::LoopStatement { label, body, .. } => {
                 self.compile_loop_statement(label, body.deref())
             }
-            Node::BreakStatement { label } => {
+            Node::BreakStatement { label, .. } => {
                 self.compile_break_statement(label);
                 Terminator::Break
             }
-            Node::ContinueStatement { label } => {
+            Node::ContinueStatement { label, .. } => {
                 // TODO
                 panic!("No implement");
             }
@@ -357,6 +359,7 @@ impl<'ctx> Compiler<'ctx> {
                     condition,
                     consequent,
                     alternate,
+                    ..
                 } => {
                     else_terminator = self.compile_if_statement(
                         condition.deref(),
@@ -365,7 +368,7 @@ impl<'ctx> Compiler<'ctx> {
                     );
                 }
                 // else
-                Node::BlockStatement { body } => {
+                Node::BlockStatement { body, .. } => {
                     else_terminator = self.compile_block_statement(body, false);
                 }
                 _ => never(),
