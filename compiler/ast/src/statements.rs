@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
                 omit_tailing_semi = true;
                 self.parse_block_statement(false)
             }
-            _ => self.unexpected(None),
+            _ => self.parse_expression_statement(),
         };
 
         let mut tail_semi_count = 0;
@@ -218,9 +218,15 @@ impl<'a> Parser<'a> {
             self.consume_or_panic(TokenType::Colon);
             self.expect(TokenType::Identifier);
             let kind_str = self.current_token.value.to_string();
-            let kind = KindName::from(&kind_str, false).into();
+            let kind_name = KindName::from(&kind_str, false);
+            if kind_name.is_none() {
+                self.unexpected_kind(self.current_token.clone());
+            }
 
-            arguments.push(Box::new(Node::Identifier { name, kind }));
+            arguments.push(Box::new(Node::Identifier {
+                name,
+                kind: kind_name.unwrap().into(),
+            }));
             self.next_token();
 
             // maybe has next argument
@@ -231,8 +237,13 @@ impl<'a> Parser<'a> {
         // maybe return kind
         let mut return_kind = Kind::None;
         if self.consume(TokenType::ReturnSym) {
+            self.expect(TokenType::Identifier);
             let kind_str = self.current_token.value.to_string();
-            return_kind = KindName::from(&kind_str, true).into();
+            let kind_name = KindName::from(&kind_str, true);
+            if kind_name.is_none() {
+                self.unexpected_kind(self.current_token.clone());
+            }
+            return_kind = kind_name.unwrap().into();
             self.next_token();
         }
 
@@ -252,7 +263,11 @@ impl<'a> Parser<'a> {
     // 解析表达式语句
     pub fn parse_expression_statement(&mut self) -> Node {
         self.validate_inside_fn();
-        let expression = Box::new(self.parse_expression().unwrap());
+        let expression = self.parse_expression();
+        if expression.is_none() {
+            self.unexpected(Some("Invalid expression"));
+        }
+        let expression = Box::new(expression.unwrap());
         Node::ExpressionStatement { expression }
     }
 
@@ -293,7 +308,11 @@ impl<'a> Parser<'a> {
         if self.consume(TokenType::Colon) {
             self.expect(TokenType::Identifier);
             let kind_str = self.current_token.value.to_string();
-            kind = KindName::from(&kind_str, true).into();
+            let kind_name = KindName::from(&kind_str, false);
+            if kind_name.is_none() {
+                self.unexpected_kind(self.current_token.clone());
+            }
+            kind = kind_name.unwrap().into();
             self.next_token();
         }
 
@@ -303,8 +322,13 @@ impl<'a> Parser<'a> {
         });
 
         // init
+        let op_token = self.current_token.clone();
         self.consume_or_panic(TokenType::Assign);
-        let init = Box::new(self.parse_expression().unwrap());
+        let init = self.parse_expression();
+        if init.is_none() {
+            self.unexpected_token(op_token, Some("Missing initial value"));
+        }
+        let init = Box::new(init.unwrap());
 
         Node::VariableDeclaration { id, init }
     }
@@ -335,11 +359,16 @@ impl<'a> Parser<'a> {
             return self.parse_block_statement(false);
         }
 
+        let if_token = self.current_token.clone();
         self.next_token();
 
         // condition
         let has_paren = self.consume(TokenType::ParenL);
-        let condition = self.parse_expression().unwrap();
+        let condition = self.parse_expression();
+        if condition.is_none() {
+            self.unexpected_err(if_token.end, "Missing condition");
+        }
+
         if has_paren {
             self.consume_or_panic(TokenType::ParenR);
         }
@@ -356,7 +385,7 @@ impl<'a> Parser<'a> {
         };
 
         Node::IfStatement {
-            condition: Box::new(condition),
+            condition: Box::new(condition.unwrap()),
             consequent: Box::new(consequent),
             alternate,
         }

@@ -14,11 +14,14 @@ impl<'a> Parser<'a> {
         &mut self,
         current_precedence: i8,
     ) -> Option<Node> {
-        if self.current_token.token_type == TokenType::ParenL {
+        if self.is_token(TokenType::ParenL) {
             self.next_token();
-            let left = self.parse_expression()?;
+            let expr = self.parse_expression();
+            if expr.is_none() {
+                self.unexpected(Some("Missing expression"));
+            }
             self.consume_or_panic(TokenType::ParenR);
-            self.parse_binary_expression_precedence(left, current_precedence)
+            self.parse_binary_expression_precedence(expr.unwrap(), current_precedence)
         } else {
             let left = self.parse_maybe_unary_expression(current_precedence)?;
             self.parse_binary_expression_precedence(left, current_precedence)
@@ -40,18 +43,18 @@ impl<'a> Parser<'a> {
             }
             TokenType::LogicNot | TokenType::BitNot => {
                 let operator = self.current_token.value.to_string();
+                let op_token = self.current_token.clone();
                 self.next_token();
-                let argument = self.parse_expression()?;
+                let argument = self.parse_expression();
+                if argument.is_none() {
+                    self.unexpected_token(op_token, Some("Incomplete unary expression"));
+                }
                 Some(Node::UnaryExpression {
-                    argument: Box::new(argument),
+                    argument: Box::new(argument.unwrap()),
                     operator,
                 })
             }
-            _ => {
-                // TODO TRY
-                panic!("TODO: Unary op try test");
-                // self.parse_atom_expression()
-            }
+            _ => self.parse_atom_expression(),
         }
     }
 
@@ -69,21 +72,21 @@ impl<'a> Parser<'a> {
             if operator == "=" {
                 self.unexpected(None);
             }
-            let operator_token = self.current_token.clone();
+            let op_token = self.current_token.clone();
             self.next_token();
 
             // 解析可能更高优先级的右侧表达式，如: `1 + 2 * 3` 将解析 `2 * 3` 作为右值
             let maybe_higher_precedence_expr =
                 self.parse_maybe_binary_expression(precedence);
             if maybe_higher_precedence_expr.is_none() {
-                self.unexpected_token(operator_token, Some("Incomplete binary expression"));
+                self.unexpected_token(op_token, Some("Incomplete binary expression"));
             }
             let right = self.parse_binary_expression_precedence(
                 maybe_higher_precedence_expr.unwrap(),
                 precedence,
             );
             if right.is_none() {
-                self.unexpected_token(operator_token, Some("Incomplete binary expression"));
+                self.unexpected_token(op_token, Some("Incomplete binary expression"));
             }
             let node = Node::BinaryExpression {
                 left: Box::new(left),
@@ -116,12 +119,19 @@ impl<'a> Parser<'a> {
                             name: value,
                             kind: Kind::Infer,
                         });
+                        let op_token = self.current_token.clone();
                         self.next_token();
 
-                        let right = Box::new(self.parse_expression()?);
+                        let right = self.parse_expression();
+                        if right.is_none() {
+                            self.unexpected_token(
+                                op_token,
+                                Some("Missing initial value"),
+                            );
+                        }
                         Some(Node::AssignmentExpression {
                             left,
-                            right,
+                            right: Box::new(right.unwrap()),
                             operator: next_value,
                         })
                     }
@@ -158,8 +168,11 @@ impl<'a> Parser<'a> {
         let mut arguments = vec![];
         self.consume_or_panic(TokenType::ParenL);
         while self.check_valid_index() && !self.is_token(TokenType::ParenR) {
-            let arg = self.parse_expression()?;
-            arguments.push(Box::new(arg));
+            let arg = self.parse_expression();
+            if arg.is_none() {
+                self.unexpected(Some("Invalid argument"))
+            }
+            arguments.push(Box::new(arg.unwrap()));
             self.consume(TokenType::Comma);
         }
         self.consume_or_panic(TokenType::ParenR);

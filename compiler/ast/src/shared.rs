@@ -35,17 +35,18 @@ impl Into<Kind> for KindName {
 
 impl KindName {
     // 通过字符串创建 KindName，无效类型将会抛错
-    pub fn from(kind_str: &str, allow_void: bool) -> Self {
+    pub fn from(kind_str: &str, allow_void: bool) -> Option<Self> {
         match kind_str.as_bytes() {
-            b"num" => KindName::Number,
-            b"bool" => KindName::Boolean,
+            b"num" => Some(KindName::Number),
+            b"bool" => Some(KindName::Boolean),
             b"void" => {
                 if !allow_void {
-                    panic!("Unexpected kind: {}", kind_str);
+                    None
+                } else {
+                    Some(KindName::Void)
                 }
-                KindName::Void
             }
-            _ => panic!("Invalid type: {}", kind_str),
+            _ => None,
         }
     }
 
@@ -82,7 +83,7 @@ impl PartialEq for Kind {
 
 impl Kind {
     pub fn create(kind_str: &str) -> Self {
-        KindName::from(kind_str, true).into()
+        KindName::from(kind_str, true).expect("Invalid kind string").into()
     }
 
     // 类型是否是精确的

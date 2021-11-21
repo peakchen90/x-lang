@@ -64,8 +64,8 @@ impl Visitor {
                 }
             }
             Node::ReturnStatement { argument } => {
-                if argument.is_some() {
-                    self.walk_node(argument.as_ref().unwrap().deref(), callback);
+                if let Some(v) = argument {
+                    self.walk_node(v.deref(), callback);
                 }
             }
             Node::ExpressionStatement { expression } => {

@@ -71,10 +71,7 @@ impl<'ctx> Scope<'ctx> {
     // 是否存在某个 scope 名
     #[inline]
     pub fn has(&self, name: &str) -> bool {
-        match self.get(name) {
-            Some(_) => true,
-            None => false,
-        }
+        self.get(name).is_some()
     }
 
     // 新增一个 scope 命名空间
