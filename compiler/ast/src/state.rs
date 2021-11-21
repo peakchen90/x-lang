@@ -1,4 +1,4 @@
-use crate::code_frame::{print_error_frame};
+use crate::code_frame::print_error_frame;
 use crate::node::Node;
 use crate::token::{Token, TokenType};
 
@@ -31,6 +31,8 @@ impl<'a> Parser<'a> {
                 token_type: TokenType::Begin,
                 value: String::new(),
                 precedence: -1,
+                start: 0,
+                end: 0,
             },
             allow_expr: true,
             allow_return: false,
@@ -80,11 +82,12 @@ impl<'a> Parser<'a> {
             self.current_char = self.chars[self.index];
         } else {
             self.current_char = 0 as char;
-            self.current_token = Token {
-                token_type: TokenType::EOF,
-                value: String::new(),
-                precedence: -1,
-            }
+            self.current_token = Token::new(
+                self,
+                TokenType::EOF,
+                "",
+                (self.chars.len(), self.chars.len()),
+            )
         }
     }
 
@@ -152,22 +155,52 @@ impl<'a> Parser<'a> {
         self.next_token();
     }
 
-    // 抛出一个 unexpected token 错误
-    pub fn unexpected(&mut self) -> ! {
-        let mut line = 1;
-        let mut column = 1;
-        for i in self.chars.iter() {
-            if *i == '\n' {
-                line += 1;
-                column = 1;
-            } else {
-                column += 1;
+    // 抛出一个 unexpected 错误
+    pub fn unexpected_pos(&mut self, pos: usize) -> ! {
+        let mut is_end_of_file = false;
+        let mut message = match self.chars.get(pos) {
+            None => {
+                is_end_of_file = true;
+                String::from("Unexpected end of file")
             }
-        }
+            Some(ch) => format!("Unexpected token `{}`", ch),
+        };
 
-        panic!(
-            "Unexpected `{:?}` at ({}, {})",
-            self.current_token, line, column
-        )
+        let position = print_error_frame(self.input, pos, &message);
+        if !is_end_of_file {
+            let (line, column) = position.unwrap();
+            message.push_str(&format!(" ({}:{})", line, column))
+        }
+        panic!("{}", message)
+    }
+
+    // 将当前的读取的 token 抛出 unexpected 错误
+    pub fn unexpected(&mut self) -> ! {
+        self.unexpected_token(self.current_token.clone())
+    }
+
+    // 抛出一个 unexpected token 错误
+    pub fn unexpected_token(&mut self, token: Token) -> ! {
+        let mut message = String::new();
+        let mut pos = 0;
+        let mut is_end_of_file = false;
+        match token.token_type {
+            TokenType::EOF => {
+                is_end_of_file = true;
+                pos = self.chars.len();
+                message.push_str("Unexpected end of file");
+            }
+            _ => {
+                pos = token.start;
+                message.push_str(&format!("Unexpected token `{}`", token.value))
+            }
+        };
+
+        let position = print_error_frame(self.input, pos, &message);
+        if !is_end_of_file {
+            let (line, column) = position.unwrap();
+            message.push_str(&format!(" ({}:{})", line, column))
+        }
+        panic!("{}", message);
     }
 }

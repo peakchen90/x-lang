@@ -1,7 +1,7 @@
 use crate::shared::is_keyword_str;
 use crate::state::Parser;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum TokenType {
     Begin, // 初始Token
     EOF,   // 结束 Token
@@ -47,12 +47,19 @@ pub struct Token {
     pub token_type: TokenType,
     pub value: String,
     pub precedence: i8,
+    pub start: usize,
+    pub end: usize,
 }
 
 impl Token {
     // 创建一个 Token
-    pub fn new(p: &mut Parser, token_type: TokenType, value: &str) -> Self {
-        Token::create_op(p, token_type, value, -1)
+    pub fn new(
+        p: &mut Parser,
+        token_type: TokenType,
+        value: &str,
+        position: (usize, usize),
+    ) -> Self {
+        Token::create_op(p, token_type, value, -1, position)
     }
 
     // 创建一个运算符 Token
@@ -61,6 +68,7 @@ impl Token {
         token_type: TokenType,
         value: &str,
         precedence: i8,
+        position: (usize, usize),
     ) -> Self {
         match token_type {
             TokenType::Assign
@@ -82,6 +90,19 @@ impl Token {
             token_type,
             value: String::from(value),
             precedence,
+            start: position.0,
+            end: position.1,
+        }
+    }
+
+    // 克隆 Token
+    pub fn clone(&self) -> Self {
+        Token {
+            token_type: self.token_type.clone(),
+            value: self.value.clone(),
+            precedence: self.precedence,
+            start: self.start,
+            end: self.end,
         }
     }
 }
@@ -100,141 +121,260 @@ impl<'a> Parser<'a> {
                 self.move_index(1);
                 if self.current_char == '=' {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::EQ, "==", 11)
+                    Token::create_op(
+                        self,
+                        TokenType::EQ,
+                        "==",
+                        11,
+                        (self.index - 2, self.index),
+                    )
                 } else {
-                    Token::create_op(self, TokenType::Assign, "=", 1)
+                    Token::create_op(
+                        self,
+                        TokenType::Assign,
+                        "=",
+                        1,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '+' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::Plus, "+", 14)
+                Token::create_op(
+                    self,
+                    TokenType::Plus,
+                    "+",
+                    14,
+                    (self.index - 1, self.index),
+                )
             }
             '-' => {
                 let next_char = self.look_behind(1);
                 if next_char == '>' {
                     self.move_index(2);
-                    Token::new(self, TokenType::ReturnSym, "->")
+                    Token::new(
+                        self,
+                        TokenType::ReturnSym,
+                        "->",
+                        (self.index - 2, self.index),
+                    )
                 } else if self.allow_expr {
                     self.read_number()
                 } else {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::Sub, "-", 14)
+                    Token::create_op(
+                        self,
+                        TokenType::Sub,
+                        "-",
+                        14,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '*' => {
                 self.move_index(1);
                 if self.allow_expr {
-                    Token::new(self, TokenType::Star, "*")
+                    Token::new(self, TokenType::Star, "*", (self.index - 1, self.index))
                 } else {
-                    Token::create_op(self, TokenType::Mul, "*", 15)
+                    Token::create_op(
+                        self,
+                        TokenType::Mul,
+                        "*",
+                        15,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '/' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::Div, "/", 15)
+                Token::create_op(
+                    self,
+                    TokenType::Div,
+                    "/",
+                    15,
+                    (self.index - 1, self.index),
+                )
             }
             '%' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::REM, "%", 15)
+                Token::create_op(
+                    self,
+                    TokenType::REM,
+                    "%",
+                    15,
+                    (self.index - 1, self.index),
+                )
             }
             '<' => {
                 self.move_index(1);
                 if self.current_char == '=' {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::LE, "<=", 12)
+                    Token::create_op(
+                        self,
+                        TokenType::LE,
+                        "<=",
+                        12,
+                        (self.index - 2, self.index),
+                    )
                 } else {
-                    Token::create_op(self, TokenType::LT, "<", 12)
+                    Token::create_op(
+                        self,
+                        TokenType::LT,
+                        "<",
+                        12,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '>' => {
                 self.move_index(1);
                 if self.current_char == '=' {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::GE, ">=", 12)
+                    Token::create_op(
+                        self,
+                        TokenType::GE,
+                        ">=",
+                        12,
+                        (self.index - 2, self.index),
+                    )
                 } else {
-                    Token::create_op(self, TokenType::GT, ">", 12)
+                    Token::create_op(
+                        self,
+                        TokenType::GT,
+                        ">",
+                        12,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '&' => {
                 self.move_index(1);
                 if self.current_char == '&' {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::LogicAnd, "&&", 7)
+                    Token::create_op(
+                        self,
+                        TokenType::LogicAnd,
+                        "&&",
+                        7,
+                        (self.index - 2, self.index),
+                    )
                 } else {
-                    Token::create_op(self, TokenType::BitAnd, "&", 10)
+                    Token::create_op(
+                        self,
+                        TokenType::BitAnd,
+                        "&",
+                        10,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '|' => {
                 self.move_index(1);
                 if self.current_char == '|' {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::LogicOr, "||", 6)
+                    Token::create_op(
+                        self,
+                        TokenType::LogicOr,
+                        "||",
+                        6,
+                        (self.index - 2, self.index),
+                    )
                 } else {
-                    Token::create_op(self, TokenType::BitAnd, "|", 8)
+                    Token::create_op(
+                        self,
+                        TokenType::BitAnd,
+                        "|",
+                        8,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '!' => {
                 self.move_index(1);
                 if self.current_char == '=' {
                     self.move_index(1);
-                    Token::create_op(self, TokenType::NE, "!=", 11)
+                    Token::create_op(
+                        self,
+                        TokenType::NE,
+                        "!=",
+                        11,
+                        (self.index - 2, self.index),
+                    )
                 } else {
-                    Token::create_op(self, TokenType::LogicNot, "!", 17)
+                    Token::create_op(
+                        self,
+                        TokenType::LogicNot,
+                        "!",
+                        17,
+                        (self.index - 1, self.index),
+                    )
                 }
             }
             '~' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::BitNot, "~", 17)
+                Token::create_op(
+                    self,
+                    TokenType::BitNot,
+                    "~",
+                    17,
+                    (self.index - 1, self.index),
+                )
             }
             '^' => {
                 self.move_index(1);
-                Token::create_op(self, TokenType::BitNot, "^", 9)
+                Token::create_op(
+                    self,
+                    TokenType::BitNot,
+                    "^",
+                    9,
+                    (self.index - 1, self.index),
+                )
             }
             '(' => {
                 self.move_index(1);
-                Token::new(self, TokenType::ParenL, "(")
+                Token::new(self, TokenType::ParenL, "(", (self.index - 1, self.index))
             }
             ')' => {
                 self.move_index(1);
-                Token::new(self, TokenType::ParenR, ")")
+                Token::new(self, TokenType::ParenR, ")", (self.index - 1, self.index))
             }
             '[' => {
                 self.move_index(1);
-                Token::new(self, TokenType::BracketL, "[")
+                Token::new(self, TokenType::BracketL, "[", (self.index - 1, self.index))
             }
             ']' => {
                 self.move_index(1);
-                Token::new(self, TokenType::BracketR, "]")
+                Token::new(self, TokenType::BracketR, "]", (self.index - 1, self.index))
             }
             '{' => {
                 self.move_index(1);
-                Token::new(self, TokenType::BraceL, "{")
+                Token::new(self, TokenType::BraceL, "{", (self.index - 1, self.index))
             }
             '}' => {
                 self.move_index(1);
-                Token::new(self, TokenType::BraceR, "}")
+                Token::new(self, TokenType::BraceR, "}", (self.index - 1, self.index))
             }
             ',' => {
                 self.move_index(1);
-                Token::new(self, TokenType::Comma, ",")
+                Token::new(self, TokenType::Comma, ",", (self.index - 1, self.index))
             }
             '.' => {
                 self.move_index(1);
-                Token::new(self, TokenType::Dot, ".")
+                Token::new(self, TokenType::Dot, ".", (self.index - 1, self.index))
             }
             ';' => {
                 self.move_index(1);
-                Token::new(self, TokenType::Semi, ";")
+                Token::new(self, TokenType::Semi, ";", (self.index - 1, self.index))
             }
             ':' => {
                 self.move_index(1);
-                Token::new(self, TokenType::Colon, ":")
+                Token::new(self, TokenType::Colon, ":", (self.index - 1, self.index))
             }
             _ => {
                 if self.index == self.chars.len() {
-                    Token::new(self, TokenType::EOF, "EOF")
+                    Token::new(self, TokenType::EOF, "EOF", (self.index, self.index))
                 } else {
-                    self.unexpected();
+                    self.unexpected_pos(self.index);
                 }
             }
         };
@@ -243,6 +383,7 @@ impl<'a> Parser<'a> {
 
     // 读取一个标识符 token
     pub fn read_identifier(&mut self) -> Token {
+        let start = self.index;
         let mut value = String::new();
         while self.check_valid_index()
             && match self.current_char {
@@ -257,16 +398,17 @@ impl<'a> Parser<'a> {
         // keyword
         if is_keyword_str(&value) {
             if value == "true" || value == "false" {
-                return Token::new(self, TokenType::Boolean, &value);
+                return Token::new(self, TokenType::Boolean, &value, (start, self.index));
             }
-            return Token::new(self, TokenType::Keyword, &value);
+            return Token::new(self, TokenType::Keyword, &value, (start, self.index));
         }
 
-        Token::new(self, TokenType::Identifier, &value)
+        Token::new(self, TokenType::Identifier, &value, (start, self.index))
     }
 
     // 读取一个数字 token
     pub fn read_number(&mut self) -> Token {
+        let start = self.index;
         let mut value = String::new();
         if self.current_char == '-' {
             value.push('-');
@@ -283,7 +425,7 @@ impl<'a> Parser<'a> {
             self.move_index(1);
         }
 
-        Token::new(self, TokenType::Number, &value)
+        Token::new(self, TokenType::Number, &value, (start, self.index))
     }
 
     // 跳过空白字符
