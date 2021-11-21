@@ -174,9 +174,11 @@ impl<'ctx> Compiler<'ctx> {
                 alternate,
                 ..
             } => self.compile_if_statement(condition, consequent, alternate),
-            Node::LoopStatement { label, body, .. } => {
-                self.compile_loop_statement(label, body.deref())
-            }
+            Node::LoopStatement {
+                label,
+                body,
+                position,
+            } => self.compile_loop_statement(label, body.deref(), position.0),
             Node::BreakStatement { label, .. } => {
                 self.compile_break_statement(label);
                 Terminator::Break
@@ -415,6 +417,7 @@ impl<'ctx> Compiler<'ctx> {
         &mut self,
         label: &Option<String>,
         body: &Node,
+        pos: usize,
     ) -> Terminator {
         let label_name = match label {
             None => "",
@@ -444,6 +447,11 @@ impl<'ctx> Compiler<'ctx> {
 
         // 块作用域入栈
         self.push_block_scope(loop_then_block);
+        if let Some(v) = label {
+            if self.labels.has(v) {
+                self.unexpected_err(pos, &format!("The label `{}` is exists", v))
+            }
+        }
         self.labels
             .push(label.clone(), condition_ptr, loop_block, loop_after_block);
 

@@ -32,9 +32,13 @@ impl<'ctx> Compiler<'ctx> {
                 let left = self.compile_expression(left.deref());
                 let right = self.compile_expression(right.deref());
                 if kind_name == KindName::Number {
-                    self.compile_num_binary_expression(&left, &right, operator)
+                    self.compile_num_binary_expression(
+                        &left, &right, operator, position.0,
+                    )
                 } else if kind_name == KindName::Boolean {
-                    self.compile_bool_binary_expression(&left, &right, operator)
+                    self.compile_bool_binary_expression(
+                        &left, &right, operator, position.0,
+                    )
                 } else {
                     self.unexpected_err(position.0, "Invalid binary expression");
                 }
@@ -48,9 +52,9 @@ impl<'ctx> Compiler<'ctx> {
                 let kind_name = *kind.read_kind_name().unwrap();
                 let argument = self.compile_expression(argument.deref());
                 if kind_name == KindName::Number {
-                    self.compile_num_unary_expression(&argument, operator)
+                    self.compile_num_unary_expression(&argument, operator, position.0)
                 } else if kind_name == KindName::Boolean {
-                    self.compile_bool_unary_expression(&argument, operator)
+                    self.compile_bool_unary_expression(&argument, operator, position.0)
                 } else {
                     self.unexpected_err(position.0, "Invalid binary expression");
                 }
@@ -64,21 +68,12 @@ impl<'ctx> Compiler<'ctx> {
                 let (left_var, .., pos) = left.deref().read_identifier();
                 let ptr = self.get_declare_var_ptr(left_var, pos);
                 let right = self.compile_expression(right.deref());
-                match ptr {
-                    Some(ptr) => self.builder.build_store(*ptr, right),
-                    None => {
-                        // self.unexpected_err(position.0, )
-                        panic!("Can not assign a value on void type")
-                    }
-                };
+                self.builder.build_store(*ptr, right);
                 right
             }
             Node::Identifier { name, position, .. } => {
                 let ptr = self.get_declare_var_ptr(name, position.0);
-                match ptr {
-                    Some(ptr) => self.builder.build_load(*ptr, name),
-                    None => panic!("Can not get value on void type"),
-                }
+                self.builder.build_load(*ptr, name)
             }
             Node::NumberLiteral { value, .. } => {
                 self.build_number_value(*value).as_basic_value_enum()
@@ -110,7 +105,10 @@ impl<'ctx> Compiler<'ctx> {
 
         // 校验参数
         if arg_kind_names.len() != arguments.len() {
-            panic!("Call function `{}` can not match arguments", name);
+            self.unexpected_err(
+                pos + 1,
+                &format!("Call function `{}` can not match arguments", name),
+            );
         }
 
         let args = arguments.iter();
@@ -125,7 +123,10 @@ impl<'ctx> Compiler<'ctx> {
                 Kind::Some(v) => v == arg_kind_names[i],
                 _ => false,
             } {
-                panic!("Call function `{}` can not match arguments type", name);
+                self.unexpected_err(
+                    arg.read_position().0,
+                    &format!("Call function `{}` can not match arguments", name),
+                );
             }
             i += 1;
             BasicMetadataValueEnum::from(value)
@@ -142,6 +143,7 @@ impl<'ctx> Compiler<'ctx> {
         left: &BasicValueEnum<'ctx>,
         right: &BasicValueEnum<'ctx>,
         operator: &str,
+        pos: usize,
     ) -> BasicValueEnum<'ctx> {
         match operator.as_bytes() {
             b"+" => self
@@ -235,7 +237,10 @@ impl<'ctx> Compiler<'ctx> {
                     "NE",
                 )
                 .as_basic_value_enum(),
-            _ => panic!("Invalid binary operator between numbers: `{}`", operator),
+            _ => self.unexpected_err(
+                pos,
+                &format!("Invalid binary operator between numbers: `{}`", operator),
+            ),
         }
     }
 
@@ -245,6 +250,7 @@ impl<'ctx> Compiler<'ctx> {
         left: &BasicValueEnum<'ctx>,
         right: &BasicValueEnum<'ctx>,
         operator: &str,
+        pos: usize,
     ) -> BasicValueEnum<'ctx> {
         match operator.as_bytes() {
             b"==" => self
@@ -273,7 +279,10 @@ impl<'ctx> Compiler<'ctx> {
                 .builder
                 .build_or(left.into_int_value(), right.into_int_value(), "LOGIC_OR")
                 .as_basic_value_enum(),
-            _ => panic!("Invalid binary operator between bool: `{}`", operator),
+            _ => self.unexpected_err(
+                pos,
+                &format!("Invalid binary operator between bool: `{}`", operator),
+            ),
         }
     }
 
@@ -282,13 +291,17 @@ impl<'ctx> Compiler<'ctx> {
         &self,
         argument: &BasicValueEnum<'ctx>,
         operator: &str,
+        pos: usize,
     ) -> BasicValueEnum<'ctx> {
         match operator.as_bytes() {
             // b"~" => self
             //     .builder
             //     .build_not(argument.into_float_value(), "BIT_NOT")
             //     .as_basic_value_enum(),
-            _ => panic!("Invalid unary operator in numbers: `{}`", operator),
+            _ => self.unexpected_err(
+                pos,
+                &format!("Invalid unary operator in numbers: `{}`", operator),
+            ),
         }
     }
 
@@ -297,13 +310,17 @@ impl<'ctx> Compiler<'ctx> {
         &self,
         argument: &BasicValueEnum<'ctx>,
         operator: &str,
+        pos: usize,
     ) -> BasicValueEnum<'ctx> {
         match operator.as_bytes() {
             b"!" => self
                 .builder
                 .build_not(argument.into_int_value(), "NOT")
                 .as_basic_value_enum(),
-            _ => panic!("Invalid unary operator in bool: `{}`", operator),
+            _ => self.unexpected_err(
+                pos,
+                &format!("Invalid unary operator in bool: `{}`", operator),
+            ),
         }
     }
 }

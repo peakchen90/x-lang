@@ -111,7 +111,7 @@ impl Node {
     pub fn read_number(&self) -> f64 {
         match self {
             Node::NumberLiteral { value, .. } => *value,
-            _ => panic!("Error"),
+            _ => panic!("Internal Error"),
         }
     }
 
@@ -119,7 +119,7 @@ impl Node {
     pub fn read_bool(&self) -> bool {
         match self {
             Node::BooleanLiteral { value, .. } => *value,
-            _ => panic!("Error"),
+            _ => panic!("Internal Error"),
         }
     }
 
@@ -131,7 +131,7 @@ impl Node {
                 kind,
                 position,
             } => (name, kind, position.0),
-            _ => panic!("Error"),
+            _ => panic!("Internal Error"),
         }
     }
 
@@ -139,7 +139,7 @@ impl Node {
     pub fn read_block_body(&self) -> &Vec<Box<Node>> {
         match self {
             Node::BlockStatement { body, .. } => body,
-            _ => panic!("Error"),
+            _ => panic!("Internal Error"),
         }
     }
 

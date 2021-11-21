@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
                     }
                     b"loop" => {
                         omit_tailing_semi = true;
-                        self.parse_loop_statement(None)
+                        self.parse_loop_statement(None, self.current_token.start)
                     }
                     b"break" => self.parse_break_statement(),
                     b"continue" => self.parse_continue_statement(),
@@ -51,6 +51,7 @@ impl<'a> Parser<'a> {
             TokenType::Identifier => {
                 // 可能是 label
                 let maybe_label = self.current_token.value.to_string();
+                let start_pos = self.current_token.start;
                 if self.check_next_char(':') {
                     self.next_token();
                     self.consume_or_panic(TokenType::Colon);
@@ -58,7 +59,7 @@ impl<'a> Parser<'a> {
                     match self.current_token.value.as_bytes() {
                         b"loop" => {
                             omit_tailing_semi = true;
-                            self.parse_loop_statement(Some(maybe_label))
+                            self.parse_loop_statement(Some(maybe_label), start_pos)
                         }
                         _ => self.unexpected(None),
                     }
@@ -431,17 +432,20 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 loop 循环语句
-    pub fn parse_loop_statement(&mut self, label: Option<String>) -> Node {
+    pub fn parse_loop_statement(
+        &mut self,
+        label: Option<String>,
+        start_pos: usize,
+    ) -> Node {
         self.validate_inside_fn();
         self.current_loop_level += 1;
-        let start = self.current_token.start;
 
         self.next_token();
         let body = self.parse_block_statement(false);
 
         self.current_loop_level -= 1;
         Node::LoopStatement {
-            position: (start, body.read_position().1),
+            position: (start_pos, body.read_position().1),
             label,
             body: Box::new(body),
         }

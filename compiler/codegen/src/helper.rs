@@ -14,7 +14,7 @@ use x_lang_ast::visitor::Visitor;
 
 // 永从不会发生，用于避免编译器报错
 pub fn never() -> ! {
-    panic!("NEVER")
+    panic!("Internal Error: never")
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -134,7 +134,7 @@ impl<'ctx> Compiler<'ctx> {
         &self,
         name: &str,
         pos: usize,
-    ) -> (&Kind, &Option<PointerValue<'ctx>>) {
+    ) -> (&Kind, &PointerValue<'ctx>) {
         let target = self.scope.search_by_name(name, false);
         if target.is_none() {
             self.unexpected_err(pos, &format!("Scope `{}` is not found", name))
@@ -142,11 +142,7 @@ impl<'ctx> Compiler<'ctx> {
         target.unwrap().get_var()
     }
 
-    pub fn get_declare_var_ptr(
-        &self,
-        name: &str,
-        pos: usize,
-    ) -> &Option<PointerValue<'ctx>> {
+    pub fn get_declare_var_ptr(&self, name: &str, pos: usize) -> &PointerValue<'ctx> {
         let (_, ptr) = self.get_declare_var(name, pos);
         ptr
     }
@@ -177,17 +173,14 @@ impl<'ctx> Compiler<'ctx> {
             true => format!("ARGUMENT.{}", name),
             false => name.to_string(),
         };
-        let ptr = match kind
-            .read_kind_name()
-            .expect("Can not declare void type variable")
-        {
+        let ptr = match kind.read_kind_name().expect("Never") {
             KindName::Number => {
                 let ty = self.build_number_type();
                 let ptr = self.builder.build_alloca(ty, &mem_name);
                 if let Some(v) = value {
                     self.builder.build_store(ptr, v.into_float_value());
                 }
-                Some(ptr)
+                ptr
             }
             KindName::Boolean => {
                 let ty = self.build_bool_type();
@@ -195,9 +188,9 @@ impl<'ctx> Compiler<'ctx> {
                 if let Some(v) = value {
                     self.builder.build_store(ptr, v.into_int_value());
                 }
-                Some(ptr)
+                ptr
             }
-            KindName::Void => None,
+            KindName::Void => never(),
         };
 
         let scope_type = ScopeType::Variable { kind, ptr };

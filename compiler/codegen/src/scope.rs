@@ -15,10 +15,7 @@ pub struct FunctionScope<'ctx> {
 #[derive(Debug)]
 pub enum ScopeType<'ctx> {
     Function(FunctionScope<'ctx>),
-    Variable {
-        kind: Kind,
-        ptr: Option<PointerValue<'ctx>>,
-    },
+    Variable { kind: Kind, ptr: PointerValue<'ctx> },
 }
 
 impl<'ctx> ScopeType<'ctx> {
@@ -36,13 +33,13 @@ impl<'ctx> ScopeType<'ctx> {
     pub fn get_fn(&self) -> &FunctionScope<'ctx> {
         match self {
             ScopeType::Function(v) => v,
-            ScopeType::Variable { .. } => panic!("Error"),
+            ScopeType::Variable { .. } => panic!("Internal Error"),
         }
     }
 
-    pub fn get_var(&self) -> (&Kind, &Option<PointerValue<'ctx>>) {
+    pub fn get_var(&self) -> (&Kind, &PointerValue<'ctx>) {
         match self {
-            ScopeType::Function { .. } => panic!("Error"),
+            ScopeType::Function { .. } => panic!("Internal Error"),
             ScopeType::Variable { kind, ptr } => (kind, ptr),
         }
     }
@@ -197,14 +194,6 @@ impl<'ctx> Labels<'ctx> {
         loop_block: BasicBlock<'ctx>,
         after_block: BasicBlock<'ctx>,
     ) {
-        match name {
-            None => {}
-            Some(ref v) => {
-                if self.has(v) {
-                    panic!("Label `{}` is exists", v);
-                }
-            }
-        }
         self.label_chains.push(Label {
             name,
             condition_ptr,
