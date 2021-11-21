@@ -96,9 +96,9 @@ impl<'a> Parser<'a> {
     // 解析 import 语句
     pub fn parse_import_declaration(&mut self) -> Node {
         self.validate_program_root("Import declaration");
-        let import_token = self.current_token.clone();
-        let start = import_token.start;
-        let mut end = import_token.end;
+        let mark_begin_pos = self.current_token.end;
+        let start = self.current_token.start;
+        let mut end = mark_begin_pos;
 
         self.skip_space(false);
         let mut source = String::new();
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
         let mut specifiers = None;
 
         let mut has_std_ending = false;
-        let mut mark_pos = import_token.end;
+        let mut mark_pos = mark_begin_pos;
 
         if self.current_char == '<' {
             is_std_source = true;
@@ -143,7 +143,7 @@ impl<'a> Parser<'a> {
             self.unexpected_err(mark_pos, "Invalid import source");
         }
         if source.is_empty() {
-            self.unexpected_err(import_token.end, "Missing import source");
+            self.unexpected_err(mark_begin_pos, "Missing import source");
         }
 
         // parse import specifiers
@@ -348,11 +348,11 @@ impl<'a> Parser<'a> {
         let id = Box::new(self.gen_identifier(id_token, kind));
 
         // init
-        let op_token = self.current_token.clone();
+        let mark_pos = self.current_token.start;
         self.consume_or_panic(TokenType::Assign);
         let init = self.parse_expression();
         if init.is_none() {
-            self.unexpected_token(op_token, Some("Missing initial value"));
+            self.unexpected_err(mark_pos, "Missing initial value");
         }
         let init = init.unwrap();
 
@@ -393,15 +393,15 @@ impl<'a> Parser<'a> {
             return self.parse_block_statement(false);
         }
 
-        let if_token = self.current_token.clone();
-        let start = if_token.start;
+        let mark_pos = self.current_token.end;
+        let start = self.current_token.start;
         self.next_token();
 
         // condition
         let has_paren = self.consume(TokenType::ParenL);
         let condition = self.parse_expression();
         if condition.is_none() {
-            self.unexpected_err(if_token.end, "Missing condition");
+            self.unexpected_err(mark_pos, "Missing condition");
         }
 
         if has_paren {

@@ -1,11 +1,8 @@
 use crate::compile;
 use std::{env, fs};
-use x_lang_ast::state::Parser;
 
 fn run_test(code: &str) {
-    let parser = Parser::new(&code);
-    let node = parser.node.unwrap();
-    compile(&node, true);
+    compile(code, true);
 }
 
 #[cfg(test)]

@@ -12,8 +12,10 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use x_lang_ast::node::Node;
 use x_lang_ast::shared::{Kind, KindName};
+use x_lang_ast::state::Parser;
 
 pub struct Compiler<'ctx> {
+    pub source: &'ctx str,
     pub context: &'ctx Context,
     pub builder: Builder<'ctx>,
     pub module: Module<'ctx>,
@@ -26,7 +28,7 @@ pub struct Compiler<'ctx> {
 }
 
 impl<'ctx> Compiler<'ctx> {
-    pub fn compile(ast: &Node, is_debug: bool) {
+    pub fn compile(source: &str, is_debug: bool) {
         let context = &Context::create();
         let module = context.create_module("main");
         let builder = context.create_builder();
@@ -37,6 +39,7 @@ impl<'ctx> Compiler<'ctx> {
             .unwrap();
 
         let mut compiler = Compiler {
+            source,
             context,
             module,
             builder,
@@ -49,7 +52,8 @@ impl<'ctx> Compiler<'ctx> {
         };
 
         // 开始编译
-        compiler.compile_program(ast);
+        let ast = Parser::new(source).node.unwrap();
+        compiler.compile_program(&ast);
 
         #[cfg(not(test))]
         if is_debug {

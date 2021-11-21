@@ -134,7 +134,7 @@ pub fn print_warn_frame(
 }
 
 // 打印错误代码帧信息
-pub fn print_error_frame(
+pub fn unexpected_err(
     source: &str,
     pos: usize,
     message: &str,

@@ -42,7 +42,7 @@ impl Formatter {
     fn format_node(&mut self, node: &Node) -> String {
         let mut code = String::new();
         match node {
-            Node::Program { body } => {
+            Node::Program { body, .. } => {
                 for i in body.iter() {
                     code.push_str(self.format_node(i.deref()).as_str());
                 }
@@ -51,6 +51,7 @@ impl Formatter {
                 source,
                 is_std_source,
                 specifiers,
+                ..
             } => {
                 code.push_str("import ");
                 if *is_std_source {
@@ -78,6 +79,7 @@ impl Formatter {
                 body,
                 return_kind,
                 is_pub,
+                ..
             } => {
                 code.push_str("\n");
                 if *is_pub {
@@ -108,7 +110,7 @@ impl Formatter {
                 code.push_str(&self.format_node(body));
                 code.push_str("\n");
             }
-            Node::VariableDeclaration { id, init } => {
+            Node::VariableDeclaration { id, init, .. } => {
                 code.push_str("var ");
                 let (name, kind) = id.deref().read_identifier();
                 code.push_str(name);
@@ -116,10 +118,10 @@ impl Formatter {
                 code.push_str(&self.format_node(init.deref()));
                 code.push_str(";\n");
             }
-            Node::BlockStatement { body } => {
+            Node::BlockStatement { body, .. } => {
                 code.push_str(&self.format_block(body, true))
             }
-            Node::ReturnStatement { argument } => {
+            Node::ReturnStatement { argument, .. } => {
                 code.push_str("return");
                 if let Some(v) = argument {
                     code.push_str(" ");
@@ -127,7 +129,7 @@ impl Formatter {
                 }
                 code.push_str(";\n");
             }
-            Node::ExpressionStatement { expression } => {
+            Node::ExpressionStatement { expression, .. } => {
                 code.push_str(&self.format_node(expression.deref()));
                 code.push_str(";\n")
             }
@@ -135,6 +137,7 @@ impl Formatter {
                 condition,
                 consequent,
                 alternate,
+                ..
             } => {
                 code.push_str("if (");
                 code.push_str(&self.format_node(condition.deref()));
@@ -149,7 +152,7 @@ impl Formatter {
                     code.push_str("\n");
                 }
             }
-            Node::LoopStatement { label, body } => {
+            Node::LoopStatement { label, body, .. } => {
                 if let Some(v) = label {
                     code.push_str(v);
                     code.push_str(": ")
@@ -157,7 +160,7 @@ impl Formatter {
                 code.push_str("loop ");
                 code.push_str(&self.format_node(body.deref()));
             }
-            Node::BreakStatement { label } => {
+            Node::BreakStatement { label, .. } => {
                 code.push_str("break");
                 if let Some(v) = label {
                     code.push_str(" ");
@@ -165,7 +168,7 @@ impl Formatter {
                 }
                 code.push_str(";\n")
             }
-            Node::ContinueStatement { label } => {
+            Node::ContinueStatement { label, .. } => {
                 code.push_str("continue");
                 if let Some(v) = label {
                     code.push_str(" ");
@@ -173,14 +176,18 @@ impl Formatter {
                 }
                 code.push_str(";\n")
             }
-            Node::ImportSpecifier { imported, local } => {
+            Node::ImportSpecifier {
+                imported, local, ..
+            } => {
                 code.push_str(imported);
                 if let Some(local) = local {
                     code.push_str(" as ");
                     code.push_str(local);
                 }
             }
-            Node::CallExpression { callee, arguments } => {
+            Node::CallExpression {
+                callee, arguments, ..
+            } => {
                 let (callee_str, ..) = callee.deref().read_identifier();
                 code.push_str(callee_str);
                 code.push_str("(");
@@ -196,6 +203,7 @@ impl Formatter {
                 left,
                 right,
                 operator,
+                ..
             } => {
                 code.push_str(&self.format_node(left.deref()));
                 code.push_str(" ");
@@ -203,7 +211,9 @@ impl Formatter {
                 code.push_str(" ");
                 code.push_str(&self.format_node(right.deref()));
             }
-            Node::UnaryExpression { argument, operator } => {
+            Node::UnaryExpression {
+                argument, operator, ..
+            } => {
                 code.push_str(operator);
                 code.push_str(&self.format_node(argument.deref()));
             }
@@ -211,6 +221,7 @@ impl Formatter {
                 left,
                 right,
                 operator,
+                ..
             } => {
                 code.push_str(&self.format_node(left.deref()));
                 code.push_str(" ");
@@ -221,10 +232,10 @@ impl Formatter {
             Node::Identifier { name, .. } => {
                 code.push_str(name);
             }
-            Node::NumberLiteral { value } => {
+            Node::NumberLiteral { value, .. } => {
                 code.push_str(&value.to_string());
             }
-            Node::BooleanLiteral { value } => {
+            Node::BooleanLiteral { value, .. } => {
                 code.push_str(&value.to_string());
             }
         };

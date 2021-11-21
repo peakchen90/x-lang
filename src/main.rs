@@ -22,7 +22,7 @@ fn ast_test() {
     let format_code = format(&str);
     fs::write("test.fmt.x", format_code);
 
-    compile(&node, true);
+    compile(&str, true);
 }
 
 fn main() {

@@ -43,15 +43,15 @@ impl<'a> Parser<'a> {
             }
             TokenType::LogicNot | TokenType::BitNot => {
                 let operator = self.current_token.value.to_string();
-                let op_token = self.current_token.clone();
+                let start = self.current_token.start;
                 self.next_token();
                 let argument = self.parse_expression();
                 if argument.is_none() {
-                    self.unexpected_token(op_token, Some("Incomplete unary expression"));
+                    self.unexpected_err(start, "Incomplete unary expression");
                 }
                 let argument = argument.unwrap();
                 Some(Node::UnaryExpression {
-                    position: (op_token.start, argument.read_position().1),
+                    position: (start, argument.read_position().1),
                     operator,
                     argument: Box::new(argument),
                 })
@@ -74,21 +74,21 @@ impl<'a> Parser<'a> {
             if operator == "=" {
                 self.unexpected(None);
             }
-            let op_token = self.current_token.clone();
+            let mark_pos = self.current_token.start;
             self.next_token();
 
             // 解析可能更高优先级的右侧表达式，如: `1 + 2 * 3` 将解析 `2 * 3` 作为右值
             let maybe_higher_precedence_expr =
                 self.parse_maybe_binary_expression(precedence);
             if maybe_higher_precedence_expr.is_none() {
-                self.unexpected_token(op_token, Some("Incomplete binary expression"));
+                self.unexpected_err(mark_pos, "Incomplete binary expression");
             }
             let right = self.parse_binary_expression_precedence(
                 maybe_higher_precedence_expr.unwrap(),
                 precedence,
             );
             if right.is_none() {
-                self.unexpected_token(op_token, Some("Incomplete binary expression"));
+                self.unexpected_err(mark_pos, "Incomplete binary expression");
             }
             let right = right.unwrap();
             let node = Node::BinaryExpression {
@@ -120,15 +120,12 @@ impl<'a> Parser<'a> {
                     // 赋值表达式
                     TokenType::Assign => {
                         let left = self.gen_identifier(token, Kind::Infer);
-                        let op_token = self.current_token.clone();
+                        let mark_pos = self.current_token.start;
                         self.next_token();
 
                         let right = self.parse_expression();
                         if right.is_none() {
-                            self.unexpected_token(
-                                op_token,
-                                Some("Missing initial value"),
-                            );
+                            self.unexpected_err(mark_pos, "Missing initial value");
                         }
                         let right = right.unwrap();
                         Some(Node::AssignmentExpression {

@@ -1,7 +1,6 @@
 use std::env;
 use std::fs;
 use std::time::Instant;
-use x_lang_ast::state::Parser;
 use x_lang_codegen::compile;
 
 fn print_help_info() {
@@ -41,8 +40,5 @@ pub fn handle_commander() {
     }
 
     // parse ast
-    let parser = Parser::new(&input_content);
-    let node = parser.node.unwrap();
-
-    compile(&node, is_debug);
+    compile(&input_content, is_debug);
 }
