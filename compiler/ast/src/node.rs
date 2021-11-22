@@ -100,10 +100,11 @@ pub enum Node {
         value: bool,
         position: (usize, usize),
     },
-    // StringLiteral {
-    //     value: String,
-    //     position: (usize, usize)
-    // },
+    StringLiteral {
+        value: String,
+        is_raw: bool,
+        position: (usize, usize)
+    },
 }
 
 impl Node {
@@ -165,6 +166,7 @@ impl Node {
             Node::Identifier { position, .. } => *position,
             Node::NumberLiteral { position, .. } => *position,
             Node::BooleanLiteral { position, .. } => *position,
+            Node::StringLiteral { position, .. } => *position,
         }
     }
 }

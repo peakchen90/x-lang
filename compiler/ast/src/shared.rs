@@ -24,6 +24,7 @@ pub fn is_keyword_str(str: &str) -> bool {
 pub enum KindName {
     Number,
     Boolean,
+    String,
     Void,
 }
 
@@ -39,6 +40,7 @@ impl KindName {
         match kind_str.as_bytes() {
             b"num" => Some(KindName::Number),
             b"bool" => Some(KindName::Boolean),
+            b"str" => Some(KindName::String),
             b"void" => {
                 if !allow_void {
                     None
@@ -55,6 +57,7 @@ impl KindName {
         match self {
             KindName::Number => "num".to_string(),
             KindName::Boolean => "bool".to_string(),
+            KindName::String => "str".to_string(),
             KindName::Void => "void".to_string(),
         }
     }

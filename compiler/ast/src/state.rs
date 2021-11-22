@@ -125,14 +125,12 @@ impl<'a> Parser<'a> {
         self.current_token.token_type == token_type
     }
 
-    // 当前字符是否是换行符
-    pub fn is_newline_char(&self) -> bool {
-        self.current_char == '\n' || self.current_char == '\r'
-    }
-
     // 当前字符是否是空白字符
     pub fn is_space_char(&self) -> bool {
-        self.current_char == ' ' || self.current_char == '\t' || self.is_newline_char()
+        self.current_char == ' '
+            || self.current_char == '\t'
+            || self.current_char == '\n'
+            || self.current_char == '\r'
     }
 
     // 生成 Identifier 节点

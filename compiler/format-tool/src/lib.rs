@@ -114,6 +114,11 @@ impl Formatter {
                 code.push_str("var ");
                 let (name, kind, ..) = id.deref().read_identifier();
                 code.push_str(name);
+                if kind.is_exact() {
+                    code.push_str(": ");
+                    code.push_str(&kind.to_string());
+                }
+
                 code.push_str(" = ");
                 code.push_str(&self.format_node(init.deref()));
                 code.push_str(";\n");
@@ -237,6 +242,14 @@ impl Formatter {
             }
             Node::BooleanLiteral { value, .. } => {
                 code.push_str(&value.to_string());
+            }
+            Node::StringLiteral { value, is_raw, .. } => {
+                if *is_raw {
+                    code.push_str("r");
+                }
+                code.push_str("\"");
+                code.push_str(value);
+                code.push_str("\"");
             }
         };
         code

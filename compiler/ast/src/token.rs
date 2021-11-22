@@ -9,6 +9,7 @@ pub enum TokenType {
     Identifier,
     Number,
     Boolean,
+    String,
     Assign,    // =
     Plus,      // +
     Sub,       // -
@@ -115,8 +116,15 @@ impl<'a> Parser<'a> {
         self.skip_comment();
 
         let token = match self.current_char {
-            'A'..='Z' | 'a'..='z' | '_' | '$' => self.read_identifier(),
+            'A'..='Z' | 'a'..='z' | '_' | '$' => {
+                if self.current_char == 'r' && self.look_behind(1) == '"' {
+                    self.read_string(true)
+                } else {
+                    self.read_identifier()
+                }
+            }
             '0'..='9' => self.read_number(),
+            '"' => self.read_string(false),
             '=' => {
                 self.move_index(1);
                 if self.current_char == '=' {
@@ -428,12 +436,55 @@ impl<'a> Parser<'a> {
         Token::new(self, TokenType::Number, &value, (start, self.index))
     }
 
+    // 读取一个字符串
+    pub fn read_string(&mut self, is_raw: bool) -> Token {
+        let start = self.index;
+        let mut value = String::new();
+        if is_raw {
+            self.move_index(1);
+        }
+        self.move_index(1);
+
+        while self.check_valid_index() {
+            // 字符结束
+            if self.current_char == '"' {
+                break;
+            }
+            // 换行
+            if self.current_char == '\n' && !is_raw {
+                self.unexpected_err(
+                    self.index,
+                    "String literals cannot wrap. Tip: You can use the raw string `r\"...\"`"
+                );
+            }
+            // escape
+            if self.current_char == '\\' {
+                self.move_index(1);
+                if self.current_char != '"' {
+                    value.push('\\');
+                }
+            }
+            value.push(self.current_char);
+            self.move_index(1);
+        }
+
+        if self.current_char != '"' {
+            self.unexpected_err(
+                self.index,
+                "The string literal is missing the terminator `\"`",
+            );
+        }
+        self.move_index(1);
+
+        Token::new(self, TokenType::String, &value, (start, self.index))
+    }
+
     // 跳过空白字符
     pub fn skip_space(&mut self, is_skip_newline: bool) {
         while self.is_space_char() {
             // 标记已经换行过
             let mut should_break = false;
-            if self.is_newline_char() {
+            if self.current_char == '\n' {
                 self.is_seen_newline = true;
                 if !is_skip_newline {
                     should_break = true;
@@ -455,7 +506,7 @@ impl<'a> Parser<'a> {
     pub fn skip_comment(&mut self) {
         while self.current_char == '/' && self.look_behind(1) == '/' {
             self.move_index(2);
-            while self.check_valid_index() && !self.is_newline_char() {
+            while self.check_valid_index() && self.current_char != '\n' {
                 self.move_index(1);
             }
             self.skip_space(true);
