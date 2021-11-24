@@ -109,8 +109,12 @@ impl<'ctx> Compiler<'ctx> {
         // 校验参数
         if arg_kind_names.len() != arguments.len() {
             self.unexpected_err(
-                pos + 1,
-                &format!("Call function `{}` can not match arguments", name),
+                pos + name.len(),
+                &format!(
+                    "Expected {} arguments, found {} arguments",
+                    arg_kind_names.len(),
+                    arguments.len()
+                ),
             );
         }
 
@@ -124,11 +128,15 @@ impl<'ctx> Compiler<'ctx> {
             // 校验参数
             if !match infer_arg_kind {
                 Kind::Some(v) => v == arg_kind_names[i],
-                _ => false,
+                _ => never(),
             } {
                 self.unexpected_err(
                     arg.read_position().0,
-                    &format!("Call function `{}` can not match arguments", name),
+                    &format!(
+                        "Expected `{}`, found `{}`",
+                        arg_kind_names[i].to_string(),
+                        infer_arg_kind.to_string()
+                    ),
                 );
             }
             i += 1;
