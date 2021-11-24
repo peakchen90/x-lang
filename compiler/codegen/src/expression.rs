@@ -81,6 +81,9 @@ impl<'ctx> Compiler<'ctx> {
             Node::BooleanLiteral { value, .. } => {
                 self.build_bool_value(*value).as_basic_value_enum()
             }
+            Node::StringLiteral { value, .. } => {
+                self.build_string_value(value).as_basic_value_enum()
+            }
             _ => never(),
         }
     }

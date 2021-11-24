@@ -6,6 +6,7 @@ use inkwell::comdat::ComdatSelectionKind;
 use inkwell::context::Context;
 use inkwell::types::*;
 use inkwell::values::*;
+use inkwell::AddressSpace;
 use std::ops::Deref;
 use x_lang_ast::code_frame::print_error_frame;
 use x_lang_ast::node::Node;
@@ -91,6 +92,7 @@ impl<'ctx> Compiler<'ctx> {
         match return_kind.read_return_kind_name() {
             KindName::Number => self.build_number_type().fn_type(args, false),
             KindName::Boolean => self.build_bool_type().fn_type(args, false),
+            KindName::String => self.build_store_ptr_type().fn_type(args, false),
             KindName::Void => self.build_void_type().fn_type(args, false),
         }
     }
@@ -111,6 +113,11 @@ impl<'ctx> Compiler<'ctx> {
 
     pub fn build_null_value(&self) -> IntValue<'ctx> {
         self.build_bool_type().const_zero()
+    }
+
+    // 构建存储指针类型 (i64)，当做 64 位系统处理
+    pub fn build_store_ptr_type(&self) -> IntType<'ctx> {
+        self.context.i64_type()
     }
 
     pub fn build_call_fn(
@@ -159,8 +166,8 @@ impl<'ctx> Compiler<'ctx> {
         &mut self,
         name: &str,
         kind: Kind,
-        value: Option<BasicValueEnum<'ctx>>,
-        is_arg: bool, // 是否是函数参数
+        value: Option<BasicValueEnum<'ctx>>, // 如果是函数参数，为空
+        is_arg: bool,                        // 是否是函数参数
         pos: usize,
     ) {
         let current = self.scope.current().unwrap();
@@ -184,6 +191,14 @@ impl<'ctx> Compiler<'ctx> {
             }
             KindName::Boolean => {
                 let ty = self.build_bool_type();
+                let ptr = self.builder.build_alloca(ty, &mem_name);
+                if let Some(v) = value {
+                    self.builder.build_store(ptr, v.into_int_value());
+                }
+                ptr
+            }
+            KindName::String => {
+                let ty = self.build_store_ptr_type();
                 let ptr = self.builder.build_alloca(ty, &mem_name);
                 if let Some(v) = value {
                     self.builder.build_store(ptr, v.into_int_value());
@@ -274,6 +289,12 @@ impl<'ctx> Compiler<'ctx> {
                         b"==" | b"!=" | b"&&" | b"||" => ret_kind = Kind::create("bool"),
                         _ => self.unexpected_err(position.0, "Invalid binary expression"),
                     }
+                } else if kind_name == KindName::String {
+                    match operator.as_bytes() {
+                        b"==" | b"!=" => ret_kind = Kind::create("bool"),
+                        b"+" => ret_kind = Kind::create("str"), // TODO
+                        _ => self.unexpected_err(position.0, "Invalid binary expression"),
+                    }
                 } else {
                     self.unexpected_err(position.0, "Invalid binary expression")
                 }
@@ -334,6 +355,10 @@ impl<'ctx> Compiler<'ctx> {
                 ret_kind = Kind::create("bool");
                 visitor.stop();
             }
+            Node::StringLiteral { .. } => {
+                ret_kind = Kind::create("str");
+                visitor.stop();
+            }
             _ => never(),
         });
         ret_kind
@@ -380,94 +405,5 @@ impl<'ctx> Compiler<'ctx> {
             .const_signed_to_float(self.context.f64_type());
         self.builder.build_store(ptr, value);
         self.builder.build_load(ptr, "CAST_TEMP")
-    }
-
-    // built-in
-    pub fn inject_build_in(&mut self) {
-        unsafe {
-            // print string
-            // self.bind_system_print_fn(
-            //     "str",
-            //     self.bui,
-            //     system_print_str as usize,
-            // );
-            // print number
-            self.bind_system_print_fn(
-                "num",
-                Some(self.build_number_type().into()),
-                system_print_num as usize,
-            );
-            // print bool
-            self.bind_system_print_fn(
-                "bool",
-                Some(self.build_bool_type().into()),
-                system_print_bool as usize,
-            );
-            // print newline
-            self.bind_system_print_fn("newline", None, system_print_newline as usize);
-        }
-    }
-
-    fn bind_system_print_fn(
-        &mut self,
-        type_name: &'static str,
-        arg_type: Option<BasicMetadataTypeEnum<'ctx>>,
-        address: usize,
-    ) {
-        let arg_types = match arg_type {
-            Some(v) => vec![v],
-            None => vec![],
-        };
-        let print_fn_value = self.build_fn_value(
-            &format!("print_{}", type_name),
-            &Kind::create("void"),
-            arg_types.as_slice(),
-        );
-        self.execution_engine
-            .add_global_mapping(&print_fn_value, address);
-
-        // 保存信息
-        self.print_fns.insert(type_name, print_fn_value);
-        self.scope.external.add(
-            "print",
-            ScopeType::Function(FunctionScope {
-                fn_value: print_fn_value,
-                return_kind: Kind::create("void"),
-                arg_kind_names: vec![],
-                arg_variables: vec![],
-                entry_block: None,
-            }),
-        )
-    }
-
-    pub fn build_call_system_print(
-        &self,
-        arguments: &Vec<Box<Node>>,
-    ) -> BasicValueEnum<'ctx> {
-        let len = arguments.len();
-        for (i, arg) in arguments.iter().enumerate() {
-            let arg = arg.deref();
-            let arg_value = self.compile_expression(arg);
-            let infer_kind = self.infer_expression_kind(arg);
-            let infer_kind_name = infer_kind.read_kind_name().unwrap();
-            match infer_kind_name {
-                KindName::Number | KindName::Boolean => {
-                    let fn_value = self
-                        .print_fns
-                        .get(infer_kind_name.to_string().as_str())
-                        .unwrap();
-                    self.build_call_fn(fn_value, &[arg_value.into()], "CALL.sys_print");
-                }
-                KindName::Void => {}
-            }
-        }
-        // 打印换行
-        self.build_call_fn(
-            self.print_fns.get("newline").unwrap(),
-            &[],
-            "CALL.sys_print_newline",
-        );
-
-        self.build_null_value().as_basic_value_enum()
     }
 }

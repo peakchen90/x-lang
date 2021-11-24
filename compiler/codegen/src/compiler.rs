@@ -53,6 +53,12 @@ impl<'ctx> Compiler<'ctx> {
             is_debug,
         };
 
+        // TODO TEST
+        // compiler.inject_build_in();
+        // compiler.string_test();
+        // compiler.module.print_to_file(".debug.ll");
+        // return;
+
         // 开始编译
         let ast = Parser::new(source).node.unwrap();
         compiler.compile_program(&ast);
@@ -114,6 +120,7 @@ impl<'ctx> Compiler<'ctx> {
                             (match kind_name {
                                 KindName::Number => self.build_number_type().into(),
                                 KindName::Boolean => self.build_bool_type().into(),
+                                KindName::String => self.build_store_ptr_type().into(),
                                 KindName::Void => never(),
                             })
                         });
@@ -231,6 +238,10 @@ impl<'ctx> Compiler<'ctx> {
                     fv.set_name(arg_name);
                 }
                 KindName::Boolean => {
+                    let fv = arg.into_int_value();
+                    fv.set_name(arg_name);
+                }
+                KindName::String => {
                     let fv = arg.into_int_value();
                     fv.set_name(arg_name);
                 }
@@ -562,10 +573,10 @@ impl<'ctx> Compiler<'ctx> {
         let (id, mut kind, pos) = id.read_identifier();
 
         // Note: 避免下面的临时变量生命周期不够长，临时借用变量
-        let temp_borrowed;
+        let temp;
         if !kind.is_exact() {
-            temp_borrowed = self.infer_expression_kind(init);
-            kind = &temp_borrowed;
+            temp = self.infer_expression_kind(init);
+            kind = &temp;
         }
         let init_value = self.compile_expression(init);
         self.put_variable(

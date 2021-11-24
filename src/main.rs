@@ -1,7 +1,6 @@
 mod cli;
 
 use std::fs;
-use std::process::Command;
 use x_lang_ast::state::Parser;
 use x_lang_codegen::compile;
 use x_lang_format_tool::format;
@@ -20,7 +19,7 @@ fn ast_test() {
 
     // format code
     let format_code = format(&str);
-    fs::write("test.fmt.x", format_code);
+    fs::write("test.fmt.x", format_code).unwrap();
 
     compile(&str, true);
 }

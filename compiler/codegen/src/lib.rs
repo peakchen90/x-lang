@@ -3,6 +3,9 @@ mod compiler;
 mod expression;
 mod helper;
 mod scope;
+mod string;
+mod utils;
+
 mod tests;
 
 use crate::compiler::Compiler;
