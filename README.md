@@ -25,6 +25,9 @@ fn main() {
 
 更多示例请参考 `fixtures` 目录里的例子
 
+## IDE 插件
+VSCode 插件：[vscode-x-lang](https://marketplace.visualstudio.com/items?itemName=peakchen90.vscode-x-lang)
+
 ## 怎样跑起来
 对于 **MacOS (x86-64)** 用户，可以直接下载编译好的二进制文件执行 ([下载链接](https://github.com/peakchen90/x-lang/releases/tag/v0.0.1))
 
