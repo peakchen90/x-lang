@@ -27,7 +27,7 @@ pub fn pad_str(value: &str, width: usize, pad_char: char) -> String {
     let mut result = String::new();
     let mut gap = width as isize - value.len() as isize;
     if gap >= 0 {
-        for i in 0..gap {
+        for _ in 0..gap {
             result.push(pad_char);
         }
         result.push_str(value);
