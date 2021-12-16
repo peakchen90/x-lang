@@ -1,10 +1,23 @@
 .vscode
 .idea
 target/
+dist/
+node_modules/
 .temp/
+.DS_Store
+*.swp
+*.iml
+
+native/artifacts.json
+artifacts.json
+*.node
 
 /.temp.*
 /.debug_ast.json
 /.debug.ll
 /test.x
 /test.fmt.x
+
+yarn.lock
+package-lock.json
+

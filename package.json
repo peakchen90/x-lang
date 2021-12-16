@@ -1,0 +1,49 @@
+{
+  "name": "@x-lang/core",
+  "version": "0.0.1-alpha.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && napi build --platform --release --cargo-name node_binding --cargo-flags=\"-p node-binding\"",
+    "build:debug": "tsc && napi build --platform --cargo-name node_binding --cargo-flags=\"-p node-binding\"",
+    "artifacts": "napi artifacts --dist npm/release",
+    "prepublishOnly": "napi prepublish -t npm/release",
+    "version": "napi version -p npm/release"
+  },
+  "files": [
+    "dist"
+  ],
+  "napi": {
+    "name": "x-lang",
+    "triples": {
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-pc-windows-msvc"
+      ]
+    }
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/peakchen90/x-lang.git"
+  },
+  "bugs": {
+    "url": "https://github.com/peakchen90/x-lang/issues"
+  },
+  "dependencies": {
+    "@node-rs/helper": "^1.2.1"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^1.2.1",
+    "@types/node": "^17.0.0",
+    "typescript": "4.3.5"
+  },
+  "license": "MIT"
+}
