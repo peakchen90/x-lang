@@ -5,24 +5,24 @@ export interface Position {
 
 export type Kind = 'number' | 'boolean' | 'string' | 'void' | 'infer' | null;
 
-interface BaseNode {
+export interface BaseNode {
     type: string
     position: Position
 }
 
-interface Program extends BaseNode {
+export interface Program extends BaseNode {
     type: 'Program'
     body: Node[]
 }
 
-interface ImportDeclaration extends BaseNode {
+export interface ImportDeclaration extends BaseNode {
     type: 'ImportDeclaration'
     source: string
     isStdSource: boolean
     specifiers: Node[] | null
 }
 
-interface FunctionDeclaration extends BaseNode {
+export interface FunctionDeclaration extends BaseNode {
     type: 'FunctionDeclaration'
     id: Node
     arguments: Node[]
@@ -31,99 +31,99 @@ interface FunctionDeclaration extends BaseNode {
     isPub: boolean
 }
 
-interface VariableDeclaration extends BaseNode {
+export interface VariableDeclaration extends BaseNode {
     type: 'VariableDeclaration'
     id: Node
     init: Node
 }
 
-interface BlockStatement extends BaseNode {
+export interface BlockStatement extends BaseNode {
     type: 'BlockStatement'
     body: Node[]
 }
 
-interface ReturnStatement extends BaseNode {
+export interface ReturnStatement extends BaseNode {
     type: 'ReturnStatement'
     argument: Node | null
 }
 
-interface ExpressionStatement extends BaseNode {
+export interface ExpressionStatement extends BaseNode {
     type: 'ExpressionStatement'
     expression: Node
 }
 
-interface IfStatement extends BaseNode {
+export interface IfStatement extends BaseNode {
     type: 'IfStatement'
     condition: Node
     consequent: Node
     alternate: Node | null
 }
 
-interface LoopStatement extends BaseNode {
+export interface LoopStatement extends BaseNode {
     type: 'LoopStatement'
     label: string | null
     body: Node
 }
 
-interface BreakStatement extends BaseNode {
+export interface BreakStatement extends BaseNode {
     type: 'BreakStatement'
     label: string | null
 }
 
-interface ContinueStatement extends BaseNode {
+export interface ContinueStatement extends BaseNode {
     type: 'ContinueStatement'
     label: string | null
 }
 
-interface ImportSpecifier extends BaseNode {
+export interface ImportSpecifier extends BaseNode {
     type: 'ImportSpecifier'
     imported: string
     local: string | null
 }
 
-interface CallExpression extends BaseNode {
+export interface CallExpression extends BaseNode {
     type: 'CallExpression'
     callee: Node
     arguments: Node[]
 }
 
-interface BinaryExpression extends BaseNode {
+export interface BinaryExpression extends BaseNode {
     type: 'BinaryExpression'
     left: Node
     right: Node
     operator: string
 }
 
-interface UnaryExpression extends BaseNode {
+export interface UnaryExpression extends BaseNode {
     type: 'UnaryExpression'
     argument: Node
     operator: string
 }
 
-interface AssignmentExpression extends BaseNode {
+export interface AssignmentExpression extends BaseNode {
     type: 'AssignmentExpression'
     left: Node
     right: Node
     operator: string
 }
 
-interface Identifier extends BaseNode {
+export interface Identifier extends BaseNode {
     type: 'Identifier'
     name: string
     kind: Kind
 }
 
-interface NumberLiteral extends BaseNode {
+export interface NumberLiteral extends BaseNode {
     type: 'NumberLiteral'
     value: number
 }
 
-interface BooleanLiteral extends BaseNode {
+export interface BooleanLiteral extends BaseNode {
     type: 'BooleanLiteral'
     value: string
 }
 
-interface StringLiteral extends BaseNode {
+export interface StringLiteral extends BaseNode {
     type: 'StringLiteral'
     value: number
     isRaw: boolean

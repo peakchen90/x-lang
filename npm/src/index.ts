@@ -1,6 +1,7 @@
 import {loadBinding} from '@node-rs/helper';
 import path from 'path';
 import {Node} from './types';
+import {walk} from './walk';
 
 const bindings = loadBinding(
     path.join(__dirname, '..'),
@@ -24,10 +25,8 @@ const xlang = {
 
     /**
      * 遍历 AST
-     * @param ast
      */
-    walk: (ast: Node) => {
-    }
+    walk
 }
 
 export = xlang;
