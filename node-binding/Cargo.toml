@@ -12,6 +12,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
+x-lang-ast = { path = "../compiler/ast" }
 napi = {version = "1", features = ["serde-json"]}
 napi-derive = {version = "1"}
 serde = {version = "1", features = ["derive"]}
