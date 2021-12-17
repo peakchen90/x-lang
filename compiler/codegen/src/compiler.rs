@@ -60,8 +60,9 @@ impl<'ctx> Compiler<'ctx> {
         // return;
 
         // 开始编译
-        let ast = Parser::new(source).node.unwrap();
-        compiler.compile_program(&ast);
+        let mut parser = Parser::new(source);
+        let node = parser.parse();
+        compiler.compile_program(&node);
 
         #[cfg(not(test))]
         if is_debug {

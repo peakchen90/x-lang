@@ -4,8 +4,8 @@ use x_lang_ast::node::Node;
 use x_lang_ast::state::Parser;
 
 pub fn format(code: &str) -> String {
-    let parser = Parser::new(code);
-    let node = parser.node.unwrap();
+    let mut parser = Parser::new(code);
+    let node = parser.parse();
     Formatter::format(&node, 4)
 }
 

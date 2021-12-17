@@ -5,8 +5,15 @@ export interface Position {
 
 export type Kind = 'number' | 'boolean' | 'string' | 'void' | 'infer' | null;
 
+export type NodeType =
+    'Program' | 'ImportDeclaration' | 'FunctionDeclaration' | 'VariableDeclaration' |
+    'BlockStatement' | 'ReturnStatement' | 'ExpressionStatement' | 'IfStatement' |
+    'LoopStatement' | 'BreakStatement' | 'ContinueStatement' | 'ImportSpecifier' |
+    'CallExpression' | 'BinaryExpression' | 'UnaryExpression' | 'AssignmentExpression' |
+    'Identifier' | 'NumberLiteral' | 'BooleanLiteral' | 'StringLiteral'
+
 export interface BaseNode {
-    type: string
+    type: NodeType
     position: Position
 }
 
@@ -135,3 +142,29 @@ export type Node =
     LoopStatement | BreakStatement | ContinueStatement | ImportSpecifier |
     CallExpression | BinaryExpression | UnaryExpression | AssignmentExpression |
     Identifier | NumberLiteral | BooleanLiteral | StringLiteral
+
+export interface WalkContext {
+    /**
+     * 使用方共享的状态
+     */
+    state: Record<string, any>;
+
+    /**
+     * 父节点
+     */
+    parent: Node | null;
+
+    /**
+     * 终止遍历
+     */
+    stop: () => void
+}
+
+export type WalkVisitorType = NodeType |
+    'Program:exit' | 'ImportDeclaration:exit' | 'FunctionDeclaration:exit' | 'VariableDeclaration:exit' |
+    'BlockStatement:exit' | 'ReturnStatement:exit' | 'ExpressionStatement:exit' | 'IfStatement:exit' |
+    'LoopStatement:exit' | 'BreakStatement:exit' | 'ContinueStatement:exit' | 'ImportSpecifier:exit' |
+    'CallExpression:exit' | 'BinaryExpression:exit' | 'UnaryExpression:exit' | 'AssignmentExpression:exit' |
+    'Identifier:exit' | 'NumberLiteral:exit' | 'BooleanLiteral:exit' | 'StringLiteral:exit'
+
+export type WalkVisitor = Record<WalkVisitorType, (node: Node, context: WalkContext) => void>

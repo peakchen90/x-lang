@@ -10,8 +10,8 @@ fn ast_test() {
     fs::write(".debug_ast.json", "{}").unwrap();
 
     let str = fs::read_to_string("test.x").unwrap();
-    let parser = Parser::new(&str);
-    let node = parser.node.unwrap();
+    let mut parser = Parser::new(&str);
+    let node = parser.parse();
 
     let ast_json_str = serde_json::to_string(&node).unwrap();
     let format_json_str = tiny_json::stringify(&tiny_json::parse(&ast_json_str), 2);

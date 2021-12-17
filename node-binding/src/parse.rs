@@ -5,29 +5,41 @@ use x_lang_ast::node::Node;
 use x_lang_ast::shared::Kind;
 use x_lang_ast::state::Parser;
 
-// 解析
+// 解析 AST
 #[js_function(1)]
 pub fn parse(ctx: CallContext) -> napi::Result<(JsObject)> {
     let input = ctx.get::<JsString>(0)?.into_utf8()?;
     let input = input.as_str()?;
-
-    let parser = Parser::new(input);
-    let node = parser.node.unwrap();
+    let mut parser = Parser::new(input);
+    let node = parser.parse();
     let node = transform_js_ast(&ctx, &node)?;
     Ok(node)
 }
 
+fn set_node_position(
+    ctx: &CallContext,
+    root: &mut JsObject,
+    node: &Node,
+) -> napi::Result<(())> {
+    let mut ast_position = ctx.env.create_object()?;
+    let (start, end) = node.read_position();
+    ast_position.set_named_property("start", ctx.env.create_uint32(start as u32)?);
+    ast_position.set_named_property("end", ctx.env.create_uint32(end as u32)?);
+    root.set_named_property("position", ast_position);
+    Ok(())
+}
+
 fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> {
-    let set_position = |root: &mut JsObject,
-                        position: (usize, usize)|
-     -> napi::Result<()> {
-        let mut ast_position = ctx.env.create_object()?;
-        ast_position
-            .set_named_property("start", ctx.env.create_uint32(position.0 as u32)?);
-        ast_position.set_named_property("end", ctx.env.create_uint32(position.1 as u32)?);
-        root.set_named_property("position", ast_position);
-        Ok(())
-    };
+    // let set_position = |root: &mut JsObject,
+    //                     position: (usize, usize)|
+    //  -> napi::Result<()> {
+    //     let mut ast_position = ctx.env.create_object()?;
+    //     ast_position
+    //         .set_named_property("start", ctx.env.create_uint32(position.0 as u32)?);
+    //     ast_position.set_named_property("end", ctx.env.create_uint32(position.1 as u32)?);
+    //     root.set_named_property("position", ast_position);
+    //     Ok(())
+    // };
 
     match node {
         Node::Program { body, position } => {
@@ -40,7 +52,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
 
             ast_root.set_named_property("type", ctx.env.create_string("Program")?);
             ast_root.set_named_property("body", ast_body);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::ImportDeclaration {
@@ -67,7 +79,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             } else {
                 ast_root.set_named_property("specifiers", ctx.env.get_null()?);
             }
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::FunctionDeclaration {
@@ -98,7 +110,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
                 ast_root.set_named_property("returnKind", ctx.env.get_null()?);
             }
             ast_root.set_named_property("isPub", ctx.env.get_boolean(*is_pub)?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::VariableDeclaration { id, init, position } => {
@@ -110,7 +122,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             );
             ast_root.set_named_property("id", transform_js_ast(ctx, id.deref())?);
             ast_root.set_named_property("init", transform_js_ast(ctx, init.deref())?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::BlockStatement { body, position } => {
@@ -123,7 +135,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
 
             ast_root.set_named_property("type", ctx.env.create_string("BlockStatement")?);
             ast_root.set_named_property("body", ast_body);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::ReturnStatement { argument, position } => {
@@ -137,7 +149,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             } else {
                 ast_root.set_named_property("argument", ctx.env.get_null()?);
             }
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::ExpressionStatement {
@@ -154,7 +166,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
                 "expression",
                 transform_js_ast(ctx, expression.deref())?,
             );
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::IfStatement {
@@ -180,7 +192,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             } else {
                 ast_root.set_named_property("alternate", ctx.env.get_null()?);
             }
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::LoopStatement {
@@ -197,7 +209,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
                 ast_root.set_named_property("label", ctx.env.get_null()?);
             }
             ast_root.set_named_property("body", transform_js_ast(ctx, body.deref())?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::BreakStatement { label, position } => {
@@ -209,7 +221,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             } else {
                 ast_root.set_named_property("label", ctx.env.get_null()?);
             }
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::ContinueStatement { label, position } => {
@@ -222,7 +234,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             } else {
                 ast_root.set_named_property("label", ctx.env.get_null()?);
             }
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::ImportSpecifier {
@@ -240,7 +252,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             } else {
                 ast_root.set_named_property("local", ctx.env.get_null()?);
             }
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::CallExpression {
@@ -258,7 +270,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             ast_root.set_named_property("type", ctx.env.create_string("CallExpression")?);
             ast_root.set_named_property("callee", transform_js_ast(ctx, callee.deref())?);
             ast_root.set_named_property("arguments", ast_arguments);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::BinaryExpression {
@@ -274,7 +286,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             ast_root.set_named_property("left", transform_js_ast(ctx, left.deref())?);
             ast_root.set_named_property("right", transform_js_ast(ctx, right.deref())?);
             ast_root.set_named_property("operator", ctx.env.create_string(operator)?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::UnaryExpression {
@@ -289,7 +301,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             ast_root
                 .set_named_property("argument", transform_js_ast(ctx, argument.deref())?);
             ast_root.set_named_property("operator", ctx.env.create_string(operator)?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::AssignmentExpression {
@@ -305,7 +317,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             ast_root.set_named_property("left", transform_js_ast(ctx, left.deref())?);
             ast_root.set_named_property("right", transform_js_ast(ctx, right.deref())?);
             ast_root.set_named_property("operator", ctx.env.create_string(operator)?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::Identifier {
@@ -322,7 +334,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             } else {
                 ast_root.set_named_property("kind", ctx.env.get_null()?);
             }
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::NumberLiteral { value, position } => {
@@ -330,7 +342,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
 
             ast_root.set_named_property("type", ctx.env.create_string("NumberLiteral")?);
             ast_root.set_named_property("value", ctx.env.create_double(*value)?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::BooleanLiteral { value, position } => {
@@ -338,7 +350,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
 
             ast_root.set_named_property("type", ctx.env.create_string("BooleanLiteral")?);
             ast_root.set_named_property("value", ctx.env.get_boolean(*value)?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
         Node::StringLiteral {
@@ -351,7 +363,7 @@ fn transform_js_ast(ctx: &CallContext, node: &Node) -> napi::Result<(JsObject)> 
             ast_root.set_named_property("type", ctx.env.create_string("StringLiteral")?);
             ast_root.set_named_property("isRaw", ctx.env.get_boolean(*is_raw)?);
             ast_root.set_named_property("value", ctx.env.create_string(value)?);
-            set_position(&mut ast_root, *position);
+            set_node_position(ctx, &mut ast_root, node);
             Ok(ast_root)
         }
     }

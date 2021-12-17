@@ -4,7 +4,7 @@ mod parse;
 #[macro_use]
 extern crate napi_derive;
 
-use parse::parse;
+use crate::parse::parse;
 
 #[module_exports]
 fn init(mut exports: napi::JsObject) -> napi::Result<()> {
