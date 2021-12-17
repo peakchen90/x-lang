@@ -39,7 +39,8 @@
     "url": "https://github.com/peakchen90/x-lang/issues"
   },
   "dependencies": {
-    "@node-rs/helper": "^1.2.1"
+    "@node-rs/helper": "^1.2.1",
+    "ts-jest": "^27.1.2"
   },
   "devDependencies": {
     "@napi-rs/cli": "^1.2.1",
@@ -50,6 +51,8 @@
   },
   "license": "MIT",
   "jest": {
-    "verbose": true
+    "verbose": true,
+    "preset": "ts-jest",
+    "setupFiles": ["./npm/tests/jest.setup.js"]
   }
 }

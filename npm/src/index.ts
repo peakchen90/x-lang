@@ -3,17 +3,15 @@ import path from 'path';
 import {Node} from './types';
 import {walk} from './walk';
 
-const bindings = loadBinding(
-    path.join(__dirname, '..'),
-    'x-lang',
-    '@x-lang/core'
-);
+const root = process.env.__XLANG_TEST__ ? process.cwd() : path.join(__dirname, '..');
+
+const bindings = loadBinding(root, 'x-lang', '@x-lang/core');
 
 const xlang = {
     /**
      * 版本
      */
-    version: require('../package.json').version as string,
+    version: require(path.join(root, 'package.json')).version as string,
 
     /**
      * 解析成 AST

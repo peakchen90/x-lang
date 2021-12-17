@@ -49,10 +49,13 @@ impl<'a> Parser<'a> {
             let stat = self.parse_statement();
             body.push(Box::new(stat));
         }
-        Node::Program {
-            position: (0, self.chars.len()),
-            body,
+
+        let mut position = (0, 0);
+        if body.len() > 0 {
+            position.0 = body.first().unwrap().read_position().0;
+            position.1 = body.last().unwrap().read_position().1;
         }
+        Node::Program { position, body }
     }
 
     // 检查光标是否超过最大值
