@@ -1,5 +1,6 @@
 # x-lang
 [![Rust CI](https://github.com/peakchen90/x-lang/actions/workflows/rust.yml/badge.svg?branch=ci)](https://github.com/peakchen90/x-lang/actions/workflows/rust.yml)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/peakchen90/x-lang)](https://github.com/peakchen90/x-lang/releases/tag/latest)
 
 <div><img style="width: 120px; height: 120px;" src="./resource/logo.png" alt="logo"/></div>
 
