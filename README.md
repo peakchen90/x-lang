@@ -1,4 +1,5 @@
 # x-lang
+[![Rust CI](https://github.com/peakchen90/x-lang/actions/workflows/rust.yml/badge.svg?branch=ci)](https://github.com/peakchen90/x-lang/actions/workflows/rust.yml)
 
 <div><img style="width: 120px; height: 120px;" src="./resource/logo.png" alt="logo"/></div>
 
@@ -28,16 +29,12 @@ fn main() {
 ## IDE 插件
 VSCode 插件：[vscode-x-lang](https://marketplace.visualstudio.com/items?itemName=peakchen90.vscode-x-lang)
 
-## 怎样跑起来
-对于 **MacOS (x86-64)** 用户，可以直接下载编译好的二进制文件执行 ([下载链接](https://github.com/peakchen90/x-lang/releases/tag/v0.0.1))
-
-对于其他系统用户，需要将本项目 clone 到本地编译：
-- 需要依赖 LLVM 环境（[见说明](./compiler/codegen/README.md)）
-- 需要 rust/cargo 环境
-- 执行 `cargo build --release` 构建
-
-下载或编译完成后，执行命令 `x-lang example.x` 编译并运行 x 语言（目前就实现了通过 JIT 方式运行），`example.x` 为待编译文件路径。
+## 尝试一下
+- 下载编译好的二进制文件 ([下载链接](https://github.com/peakchen90/x-lang/releases/tag/latest))
+- 执行命令 `x-lang example.x` 编译并运行 x 语言（目前就实现了通过 JIT 方式运行），`example.x` 为待编译文件路径。
 可以通过 `x-lang example.x --debug` 运行输出编译后端 LLVM-IR 码
+
+**提示**：MacOS 系统可能会提示 "无法打卡xxx"，先鼠标右键打开，弹出提示后选择 "打开"，之后就可以正常打开了
 
 ## 语法注意事项
 - 语句需写在函数体里面，`main` 函数是程序的入口函数，程序从这里开始

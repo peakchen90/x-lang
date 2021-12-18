@@ -14,6 +14,7 @@ jobs:
     if: '!contains(github.event.head_commit.message, ''skip ci'')'
 
     strategy:
+      fail-fast: false
       matrix:
         settings:
           - host: macos-latest
@@ -75,6 +76,7 @@ jobs:
         run: |
           mkdir -p ${{ matrix.settings.target }}
           cp target/${{ matrix.settings.target }}/release/x-lang ${{ matrix.settings.target }}
+          cp resource/example.x ${{ matrix.settings.target }}
           strip -x ${{ matrix.settings.target }}/x-lang
           tar -Jcvf ${{ matrix.settings.target }}.tar.xz ${{ matrix.settings.target }}
       - name: Prepare release (windows)
@@ -83,6 +85,7 @@ jobs:
         run: |
           mkdir -p ${{ matrix.settings.target }}
           cp target/${{ matrix.settings.target }}/release/x-lang.exe ${{ matrix.settings.target }}
+          cp resource/example.x ${{ matrix.settings.target }}
           zip -9r ${{ matrix.settings.target }}.zip ${{ matrix.settings.target }}
 
       - name: Upload to github release
@@ -92,6 +95,7 @@ jobs:
         with:
           file: ${{ matrix.settings.target }}.{tar.xz,zip}
           overwrite: true
+          tag_name: "latest"
           draft: false
           update_latest_release: true
 
