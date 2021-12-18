@@ -30,14 +30,39 @@ jobs:
           target: ${{ matrix.settings.target }}
           profile: minimal
           override: true
-      - name: Install llvm binary
+      - name: Cache cargo index
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.settings.target }}-cargo-index
+      - name: Cache llvm
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: |
+            C:/Program Files/LLVM
+            ./llvm
+          key: llvm-13.0
+      - name: Install llvm
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "13.0"
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Run tests
         run: cargo test --lib tests::tests --manifest-path compiler/codegen/Cargo.toml
       - name: Build
         run: cargo build --release --target ${{ matrix.settings.target }}
-      - name: 'cmd: ls -lha'
-        run: ls -lha target/${{ matrix.settings.target }}/release
+      - name: Compression release
+        run: |
+          strip -x target/${{ matrix.settings.target }}/release/**/*
+          tar -Jcvf ${{ matrix.settings.target }}.tar.xz target/${{ matrix.settings.target }}
         shell: bash
+      - name: Upload to github release
+        uses: xresloader/upload-to-github-release@v1
+        with:
+          file: ${{ matrix.settings.target }}.tar.xz
+          overwrite: true
+#          draft: true
+          update_latest_release: true
+          verbose: true
+
