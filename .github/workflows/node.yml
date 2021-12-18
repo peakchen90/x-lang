@@ -1,8 +1,8 @@
-name: CI
+name: Node Binding CI
 env:
   DEBUG: napi:*
   APP_NAME: core
-  MACOSX_DEPLOYMENT_TARGET: '10.13'
+  MACOSX_DEPLOYMENT_TARGET: '10.15'
 'on':
   push:
     branches:

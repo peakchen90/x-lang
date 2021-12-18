@@ -21,7 +21,10 @@ pub extern "C" fn system_print_str(value: &[u16]) {
 
     let mut size = 0;
     loop {
-        if value[size] == 0 {
+        let current = value.get(size);
+        if current.is_none() {
+            break;
+        } else if *current.unwrap() == 0 {
             break;
         }
         size += 1;

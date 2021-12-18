@@ -1,0 +1,39 @@
+name: Rust CI
+
+on:
+  push:
+    branches:
+      - ci
+  pull_request: null
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    if: '!contains(github.event.head_commit.message, ''skip ci'')'
+
+    strategy:
+      matrix:
+        settings:
+          - host: macos-latest
+            target: x86_64-apple-darwin
+
+    name: ${{ matrix.settings.target }}
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.settings.target }}
+          profile: minimal
+          override: true
+      - name: Run tests
+        run: cargo test --lib tests::tests --manifest-path compiler/codegen/Cargo.toml
+      - name: Build
+        run: cargo build --release --target ${{ matrix.settings.target }}
+      - name: 'cmd: ls -lha'
+        run: ls -lha target/${{ matrix.settings.target }}/release
+        shell: bash
