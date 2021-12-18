@@ -64,7 +64,7 @@ jobs:
         run: cargo build --release --target ${{ matrix.settings.target }}
 
       - name: Prepare release (unix*)
-        if: !${{ matrix.settings.host == "windows-latest" }}
+        if: ${{ matrix.settings.host != 'windows-latest' }}
         shell: bash
         run: |
           mkdir -p ${{ matrix.settings.target }}
@@ -72,7 +72,7 @@ jobs:
           strip -x ${{ matrix.settings.target }}/x-lang
           tar -Jcvf ${{ matrix.settings.target }}.tar.xz ${{ matrix.settings.target }}
       - name: Prepare release (windows)
-        if: ${{ matrix.settings.host == "windows-latest" }}
+        if: ${{ matrix.settings.host == 'windows-latest' }}
         shell: bash
         run: |
           mkdir -p ${{ matrix.settings.target }}
