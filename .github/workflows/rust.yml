@@ -65,6 +65,8 @@ jobs:
         run: tar -Jcvf ${{ matrix.settings.target }}.tar.xz target/${{ matrix.settings.target }}
         shell: bash
       - name: Upload to github release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         uses: xresloader/upload-to-github-release@v1
         with:
           file: ${{ matrix.settings.target }}.tar.xz
