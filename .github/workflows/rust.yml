@@ -43,12 +43,12 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo/registry
-          key: ${{ matrix.settings.target }}-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.settings.host }}-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo index
         uses: actions/cache@v2
         with:
           path: ~/.cargo/git
-          key: ${{ matrix.settings.target }}-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.settings.host }}-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache llvm
         id: cache-llvm
@@ -57,7 +57,7 @@ jobs:
           path: |
             C:/Program Files/LLVM
             ./llvm
-          key: llvm-13.0
+          key: ${{ matrix.settings.host }}-llvm-13.0
       - name: Install llvm
         uses: KyleMayes/install-llvm-action@v1
         with:
