@@ -18,11 +18,16 @@ jobs:
         settings:
           - host: macos-latest
             target: x86_64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
 
     name: ${{ matrix.settings.target }}
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v2
+
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -44,6 +49,7 @@ jobs:
         with:
           path: ~/.cargo/git
           key: ${{ matrix.settings.target }}-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Cache llvm
         id: cache-llvm
         uses: actions/cache@v2
