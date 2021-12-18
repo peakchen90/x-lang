@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  release:
     if: '!contains(github.event.head_commit.message, ''skip ci'')'
 
     strategy:
@@ -58,21 +58,34 @@ jobs:
           version: "13.0"
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
-#      - name: Run tests
-#        run: cargo test --lib tests::tests --manifest-path compiler/codegen/Cargo.toml
-#      - name: Build
-#        run: cargo build --release --target ${{ matrix.settings.target }}
-#      - name: Compression release
-#        run: tar -Jcvf ${{ matrix.settings.target }}.tar.xz target/${{ matrix.settings.target }}
-#        shell: bash
-#      - name: Upload to github release
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-#        uses: xresloader/upload-to-github-release@v1
-#        with:
-#          file: ${{ matrix.settings.target }}.tar.xz
-#          overwrite: true
-##          draft: true
-#          update_latest_release: true
-#          verbose: true
+      - name: Run tests
+        run: cargo test --lib tests::tests --manifest-path compiler/codegen/Cargo.toml
+      - name: Build
+        run: cargo build --release --target ${{ matrix.settings.target }}
+
+      - name: Prepare release (unix*)
+        if: ${{ matrix.settings.host != "windows-latest" }}
+        shell: bash
+        run: |
+          mkdir -p ${{ matrix.settings.target }}
+          cp target/${{ matrix.settings.target }}/release/x-lang ${{ matrix.settings.target }}
+          strip -x ${{ matrix.settings.target }}/x-lang
+          tar -Jcvf ${{ matrix.settings.target }}.tar.xz ${{ matrix.settings.target }}
+      - name: Prepare release (windows)
+        if: ${{ matrix.settings.host == "windows-latest" }}
+        shell: bash
+        run: |
+          mkdir -p ${{ matrix.settings.target }}
+          cp target/${{ matrix.settings.target }}/release/x-lang.exe ${{ matrix.settings.target }}
+          zip -9r ${{ matrix.settings.target }}.zip ${{ matrix.settings.target }}
+
+      - name: Upload to github release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        uses: xresloader/upload-to-github-release@v1
+        with:
+          file: ${{ matrix.settings.target }}.{tar.xz,zip}
+          overwrite: true
+          draft: false
+          update_latest_release: true
 
