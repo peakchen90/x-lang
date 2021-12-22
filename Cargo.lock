@@ -167,6 +167,7 @@ dependencies = [
  "napi-derive",
  "serde",
  "serde_json",
+ "x-lang-ast",
 ]
 
 [[package]]

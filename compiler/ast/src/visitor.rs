@@ -36,6 +36,16 @@ impl Visitor {
                     self.walk_node(stat.deref(), callback);
                 }
             }
+            Node::ImportDeclaration { specifiers, .. } => {
+                if let Some(specifiers) = specifiers {
+                    for specifier in specifiers.iter() {
+                        if self.is_stop {
+                            break;
+                        }
+                        self.walk_node(specifier.deref(), callback);
+                    }
+                }
+            }
             Node::FunctionDeclaration {
                 id,
                 arguments,
@@ -64,13 +74,31 @@ impl Visitor {
                 }
             }
             Node::ReturnStatement { argument, .. } => {
-                if let Some(v) = argument {
-                    self.walk_node(v.deref(), callback);
+                if let Some(argument) = argument {
+                    self.walk_node(argument.deref(), callback);
                 }
             }
             Node::ExpressionStatement { expression, .. } => {
                 self.walk_node(expression.deref(), callback);
             }
+            Node::IfStatement {
+                condition,
+                consequent,
+                alternate,
+                ..
+            } => {
+                self.walk_node(condition.deref(), callback);
+                self.walk_node(consequent.deref(), callback);
+                if let Some(alternate) = alternate {
+                    self.walk_node(alternate.deref(), callback);
+                }
+            }
+            Node::LoopStatement { body, .. } => {
+                self.walk_node(body.deref(), callback);
+            }
+            Node::BreakStatement { .. } => {}
+            Node::ContinueStatement { .. } => {}
+            Node::ImportSpecifier { .. } => {}
             Node::CallExpression {
                 callee, arguments, ..
             } => {
@@ -86,11 +114,17 @@ impl Visitor {
                 self.walk_node(left.deref(), callback);
                 self.walk_node(right.deref(), callback);
             }
+            Node::UnaryExpression { argument, .. } => {
+                self.walk_node(argument.deref(), callback);
+            }
             Node::AssignmentExpression { left, right, .. } => {
                 self.walk_node(left.deref(), callback);
                 self.walk_node(right.deref(), callback);
             }
-            _ => {}
+            Node::Identifier { .. } => {}
+            Node::NumberLiteral { .. } => {}
+            Node::BooleanLiteral { .. } => {}
+            Node::StringLiteral { .. } => {}
         }
     }
 }

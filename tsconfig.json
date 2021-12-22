@@ -9,6 +9,8 @@
     "rootDir": "./npm/src",
     "strict": true,
     "esModuleInterop": true,
+    "removeComments": false,
+    "moduleResolution": "node",
     "types": [
       "node",
       "jest"

@@ -5,7 +5,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc && napi build --platform --release --cargo-name node_binding --cargo-flags=\"-p node-binding\"",
-    "build:debug": "tsc && napi build --platform --cargo-name node_binding --cargo-flags=\"-p node-binding\"",
+    "build:debug": "napi build --platform --cargo-name node_binding --cargo-flags=\"-p node-binding\"",
     "artifacts": "napi artifacts --dist npm/release",
     "prepublishOnly": "napi prepublish -t npm/release",
     "version": "napi version -p npm/release",
@@ -39,7 +39,8 @@
     "url": "https://github.com/peakchen90/x-lang/issues"
   },
   "dependencies": {
-    "@node-rs/helper": "^1.2.1"
+    "@node-rs/helper": "^1.2.1",
+    "ts-jest": "^27.1.2"
   },
   "devDependencies": {
     "@napi-rs/cli": "^1.2.1",
@@ -50,6 +51,8 @@
   },
   "license": "MIT",
   "jest": {
-    "verbose": true
+    "verbose": true,
+    "preset": "ts-jest",
+    "setupFiles": ["./npm/tests/jest.setup.js"]
   }
 }

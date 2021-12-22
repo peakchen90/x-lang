@@ -15,7 +15,6 @@ pub struct Parser<'a> {
     pub allow_expr: bool,           // 当前上下文是否允许表达式
     pub current_block_level: usize, // 当前进入到第几层块级作用域
     pub current_loop_level: usize,  // 当前进入到第几层循环块
-    pub node: Option<Node>,         // 解析的 ast
 }
 
 impl<'a> Parser<'a> {
@@ -27,7 +26,8 @@ impl<'a> Parser<'a> {
             start: 0,
             end: 0,
         };
-        let mut parser = Parser {
+
+        Parser {
             input,
             chars: input.chars().collect(),
             index: 0,
@@ -38,24 +38,24 @@ impl<'a> Parser<'a> {
             allow_expr: true,
             current_block_level: 0,
             current_loop_level: 0,
-            node: None,
-        };
-        parser.node = Some(parser.parse());
-        parser
+        }
     }
 
     // 开始解析
-    fn parse(&mut self) -> Node {
+    pub fn parse(&mut self) -> Node {
         let mut body: Vec<Box<Node>> = vec![];
         self.next_token();
         while self.check_valid_index() {
             let stat = self.parse_statement();
             body.push(Box::new(stat));
         }
-        Node::Program {
-            position: (0, self.chars.len()),
-            body,
+
+        let mut position = (0, 0);
+        if body.len() > 0 {
+            position.0 = body.first().unwrap().read_position().0;
+            position.1 = body.last().unwrap().read_position().1;
         }
+        Node::Program { position, body }
     }
 
     // 检查光标是否超过最大值

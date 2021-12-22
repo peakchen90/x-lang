@@ -1,0 +1,122 @@
+{
+  "type": "Program",
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "id": {
+        "type": "Identifier",
+        "name": "main",
+        "kind": null,
+        "position": {
+          "start": 7,
+          "end": 11
+        }
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "a",
+          "kind": "number",
+          "position": {
+            "start": 12,
+            "end": 13
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "id": {
+              "type": "Identifier",
+              "name": "b",
+              "kind": "infer",
+              "position": {
+                "start": 38,
+                "end": 39
+              }
+            },
+            "init": {
+              "type": "BinaryExpression",
+              "left": {
+                "type": "Identifier",
+                "name": "a",
+                "kind": "infer",
+                "position": {
+                  "start": 42,
+                  "end": 43
+                }
+              },
+              "right": {
+                "type": "NumberLiteral",
+                "value": 5,
+                "position": {
+                  "start": 46,
+                  "end": 47
+                }
+              },
+              "operator": "+",
+              "position": {
+                "start": 42,
+                "end": 47
+              }
+            },
+            "position": {
+              "start": 34,
+              "end": 47
+            }
+          },
+          {
+            "type": "ExpressionStatement",
+            "expression": {
+              "type": "CallExpression",
+              "callee": {
+                "type": "Identifier",
+                "name": "print",
+                "kind": null,
+                "position": {
+                  "start": 53,
+                  "end": 58
+                }
+              },
+              "arguments": [
+                {
+                  "type": "Identifier",
+                  "name": "b",
+                  "kind": "infer",
+                  "position": {
+                    "start": 59,
+                    "end": 60
+                  }
+                }
+              ],
+              "position": {
+                "start": 53,
+                "end": 61
+              }
+            },
+            "position": {
+              "start": 53,
+              "end": 61
+            }
+          }
+        ],
+        "position": {
+          "start": 28,
+          "end": 63
+        }
+      },
+      "returnKind": "void",
+      "isPub": true,
+      "position": {
+        "start": 4,
+        "end": 63
+      }
+    }
+  ],
+  "position": {
+    "start": 4,
+    "end": 63
+  }
+}
