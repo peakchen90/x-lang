@@ -25,6 +25,6 @@ fn ast_test() {
 }
 
 fn main() {
-    ast_test();
-    // cli::handle_commander();
+    // ast_test();
+    cli::handle_commander();
 }

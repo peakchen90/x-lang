@@ -1,0 +1,103 @@
+name: Rust CI
+
+on:
+  push:
+    branches:
+      - ci
+  pull_request: null
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    if: '!contains(github.event.head_commit.message, ''skip ci'')'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-latest
+            target: x86_64-apple-darwin
+          - host: macos-latest
+            target: aarch64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+
+    name: ${{ matrix.settings.target }}
+    runs-on: ${{ matrix.settings.host }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.settings.target }}
+          profile: minimal
+          override: true
+      - name: Generate Cargo.lock
+        uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/registry
+          key: ${{ matrix.settings.host }}-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.settings.host }}-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache llvm
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: |
+            C:/Program Files/LLVM
+            ./llvm
+          key: ${{ matrix.settings.host }}-llvm-13.0
+      - name: Install llvm
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "13.0"
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+
+      - name: Run tests
+        run: cargo test --lib tests::tests --manifest-path compiler/codegen/Cargo.toml
+      - name: Build
+        run: cargo build --release --target ${{ matrix.settings.target }}
+
+      - name: Prepare release (unix*)
+        if: ${{ matrix.settings.host != 'windows-latest' }}
+        shell: bash
+        run: |
+          mkdir -p ${{ matrix.settings.target }}
+          cp target/${{ matrix.settings.target }}/release/x-lang ${{ matrix.settings.target }}
+          cp resource/example.x ${{ matrix.settings.target }}
+          strip -x ${{ matrix.settings.target }}/x-lang
+          tar -Jcvf ${{ matrix.settings.target }}.tar.xz ${{ matrix.settings.target }}
+      - name: Prepare release (windows)
+        if: ${{ matrix.settings.host == 'windows-latest' }}
+        shell: bash
+        run: |
+          mkdir -p ${{ matrix.settings.target }}
+          cp target/${{ matrix.settings.target }}/release/x-lang.exe ${{ matrix.settings.target }}
+          cp resource/example.x ${{ matrix.settings.target }}
+          zip -9r ${{ matrix.settings.target }}.zip ${{ matrix.settings.target }}
+
+      - name: Upload to github release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        uses: xresloader/upload-to-github-release@v1
+        with:
+          file: ${{ matrix.settings.target }}.{tar.xz,zip}
+          overwrite: true
+          tag_name: "latest"
+          draft: false
+          update_latest_release: true
+
