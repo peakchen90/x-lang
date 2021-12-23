@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 impl<'a> Parser<'a> {
     // 解析一条语句
-    pub fn parse_statement(&mut self) -> Node {
+    pub(crate) fn parse_statement(&mut self) -> Node {
         // 结尾分号是否可以省略
         let mut omit_tailing_semi = false;
 
@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 import 语句
-    pub fn parse_import_declaration(&mut self) -> Node {
+    pub(crate) fn parse_import_declaration(&mut self) -> Node {
         self.validate_program_root("Import declaration");
         let mark_begin_pos = self.current_token.end;
         let start = self.current_token.start;
@@ -217,7 +217,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析函数定义语句
-    pub fn parse_function_declaration(&mut self, is_pub: bool) -> Node {
+    pub(crate) fn parse_function_declaration(&mut self, is_pub: bool) -> Node {
         self.validate_program_root("Function declaration");
 
         let start = self.current_token.start;
@@ -281,7 +281,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析表达式语句
-    pub fn parse_expression_statement(&mut self) -> Node {
+    pub(crate) fn parse_expression_statement(&mut self) -> Node {
         self.validate_inside_fn();
         let expression = self.parse_expression();
         if expression.is_none() {
@@ -296,7 +296,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析块级语句
-    pub fn parse_block_statement(&mut self, with_fn: bool) -> Node {
+    pub(crate) fn parse_block_statement(&mut self, with_fn: bool) -> Node {
         if !with_fn {
             self.validate_inside_fn();
         }
@@ -323,7 +323,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析变量定义语句
-    pub fn parse_variable_declaration(&mut self) -> Node {
+    pub(crate) fn parse_variable_declaration(&mut self) -> Node {
         self.validate_inside_fn();
         let start = self.current_token.start;
         self.next_token();
@@ -365,7 +365,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 return 语句
-    pub fn parse_return_statement(&mut self) -> Node {
+    pub(crate) fn parse_return_statement(&mut self) -> Node {
         self.validate_inside_fn();
         let start = self.current_token.start;
         let mut end = self.current_token.end;
@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 if 语句
-    pub fn parse_if_statement(&mut self) -> Node {
+    pub(crate) fn parse_if_statement(&mut self) -> Node {
         self.validate_inside_fn();
 
         // 递归解析时，如果不是 else-if，只需解析块语句就行了
@@ -432,7 +432,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 loop 循环语句
-    pub fn parse_loop_statement(
+    pub(crate) fn parse_loop_statement(
         &mut self,
         label: Option<String>,
         start_pos: usize,
@@ -452,7 +452,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 break 语句
-    pub fn parse_break_statement(&mut self) -> Node {
+    pub(crate) fn parse_break_statement(&mut self) -> Node {
         self.validate_inside_fn();
         let start = self.current_token.start;
         let mut end = self.current_token.end;
@@ -477,7 +477,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析 continue 语句
-    pub fn parse_continue_statement(&mut self) -> Node {
+    pub(crate) fn parse_continue_statement(&mut self) -> Node {
         self.validate_inside_fn();
         let start = self.current_token.start;
         let mut end = self.current_token.end;

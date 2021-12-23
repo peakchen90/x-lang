@@ -5,12 +5,12 @@ use crate::token::{Token, TokenType};
 
 impl<'a> Parser<'a> {
     // 解析表达式
-    pub fn parse_expression(&mut self) -> Option<Node> {
+    pub(crate) fn parse_expression(&mut self) -> Option<Node> {
         self.parse_maybe_binary_expression(-1)
     }
 
     // 解析一个二元表达式（可能）
-    pub fn parse_maybe_binary_expression(
+    pub(crate) fn parse_maybe_binary_expression(
         &mut self,
         current_precedence: i8,
     ) -> Option<Node> {
@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析一个一元表达式（可能）
-    pub fn parse_maybe_unary_expression(
+    pub(crate) fn parse_maybe_unary_expression(
         &mut self,
         current_precedence: i8,
     ) -> Option<Node> {
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析二元表达式优先级
-    pub fn parse_binary_expression_precedence(
+    pub(crate) fn parse_binary_expression_precedence(
         &mut self,
         left: Node,
         current_precedence: i8,
@@ -107,7 +107,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析一个原子表达式，如: `foo()`, `3.14`, `var1`, `var2 = expr`, `true`, `"str"`
-    pub fn parse_atom_expression(&mut self) -> Option<Node> {
+    pub(crate) fn parse_atom_expression(&mut self) -> Option<Node> {
         let token = self.current_token.clone();
         match self.current_token.token_type {
             TokenType::Identifier => {
@@ -165,7 +165,7 @@ impl<'a> Parser<'a> {
     }
 
     // 解析函数调用
-    pub fn parse_call_expression(&mut self, callee_token: Token) -> Option<Node> {
+    pub(crate) fn parse_call_expression(&mut self, callee_token: Token) -> Option<Node> {
         let start = callee_token.start;
         let callee = Box::new(self.gen_identifier(callee_token, Kind::None));
 

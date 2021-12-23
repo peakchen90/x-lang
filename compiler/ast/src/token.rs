@@ -54,7 +54,7 @@ pub struct Token {
 
 impl Token {
     // 创建一个 Token
-    pub fn new(
+    pub(crate) fn new(
         p: &mut Parser,
         token_type: TokenType,
         value: &str,
@@ -64,7 +64,7 @@ impl Token {
     }
 
     // 创建一个运算符 Token
-    pub fn create_op(
+    pub(crate) fn create_op(
         p: &mut Parser,
         token_type: TokenType,
         value: &str,
@@ -97,7 +97,7 @@ impl Token {
     }
 
     // 克隆 Token
-    pub fn clone(&self) -> Self {
+    pub(crate) fn clone(&self) -> Self {
         Token {
             token_type: self.token_type.clone(),
             value: self.value.clone(),
@@ -110,7 +110,7 @@ impl Token {
 
 impl<'a> Parser<'a> {
     // 读取下一个 token
-    pub fn next_token(&mut self) {
+    pub(crate) fn next_token(&mut self) {
         self.is_seen_newline = false;
         self.skip_space(true);
         self.skip_comment();
@@ -390,7 +390,7 @@ impl<'a> Parser<'a> {
     }
 
     // 读取一个标识符 token
-    pub fn read_identifier(&mut self) -> Token {
+    pub(crate) fn read_identifier(&mut self) -> Token {
         let start = self.index;
         let mut value = String::new();
         while self.check_valid_index()
@@ -415,7 +415,7 @@ impl<'a> Parser<'a> {
     }
 
     // 读取一个数字 token
-    pub fn read_number(&mut self) -> Token {
+    pub(crate) fn read_number(&mut self) -> Token {
         let start = self.index;
         let mut value = String::new();
         if self.current_char == '-' {
@@ -437,7 +437,7 @@ impl<'a> Parser<'a> {
     }
 
     // 读取一个字符串
-    pub fn read_string(&mut self, is_raw: bool) -> Token {
+    pub(crate) fn read_string(&mut self, is_raw: bool) -> Token {
         let start = self.index;
         let mut value = String::new();
         if is_raw {
@@ -480,7 +480,7 @@ impl<'a> Parser<'a> {
     }
 
     // 跳过空白字符
-    pub fn skip_space(&mut self, is_skip_newline: bool) {
+    pub(crate) fn skip_space(&mut self, is_skip_newline: bool) {
         while self.is_space_char() {
             // 标记已经换行过
             let mut should_break = false;
@@ -503,7 +503,7 @@ impl<'a> Parser<'a> {
     }
 
     // 跳过注释
-    pub fn skip_comment(&mut self) {
+    pub(crate) fn skip_comment(&mut self) {
         while self.current_char == '/' && self.look_behind(1) == '/' {
             self.move_index(2);
             while self.check_valid_index() && self.current_char != '\n' {
