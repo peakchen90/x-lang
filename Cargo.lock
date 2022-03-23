@@ -397,6 +397,9 @@ dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen",
  "wasm-bindgen-test",
+ "x-lang-ast",
+ "x-lang-codegen",
+ "x-lang-format-tool",
 ]
 
 [[package]]

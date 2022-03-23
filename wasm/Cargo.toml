@@ -16,6 +16,9 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2"
+x-lang-ast = { path = "../compiler/ast" }
+x-lang-codegen = { path = "../compiler/codegen" }
+x-lang-format-tool = { path = "../compiler/format-tool" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

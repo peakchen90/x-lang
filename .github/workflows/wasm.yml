@@ -52,9 +52,9 @@ jobs:
 #          version: "13.0"
 #          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
-      - name: Install wasm-pack
-        shell: bash
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+#      - name: Install wasm-pack
+#        shell: bash
+#        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
 
       - name: Build
         shell: bash
@@ -67,7 +67,15 @@ jobs:
           node-version: 14
           registry-url: https://registry.npmjs.org
 
-      - run: cd wasm/pkg && npm publish --registry=https://registry.npmjs.org --access=public
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+      - uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          registry: https://registry.npmjs.org/
+          package: wasm/pkg/package.json
+          access: public
+          check-version: true
+
+#      - run: cd wasm/pkg && npm publish --registry=https://registry.npmjs.org --access=public
+#        env:
+#          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
 
