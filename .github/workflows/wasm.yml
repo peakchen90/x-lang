@@ -11,7 +11,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
+  publish:
     if: '!contains(github.event.head_commit.message, ''skip ci'')'
 
     runs-on: ubuntu-latest
@@ -40,17 +40,17 @@ jobs:
 #          path: ~/.cargo/git
 #          key: ubuntu-latest-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache llvm
-        id: cache-llvm
-        uses: actions/cache@v2
-        with:
-          path: ./llvm
-          key: ubuntu-latest-llvm-13.0
-      - name: Install llvm
-        uses: KyleMayes/install-llvm-action@v1
-        with:
-          version: "13.0"
-          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+#      - name: Cache llvm
+#        id: cache-llvm
+#        uses: actions/cache@v2
+#        with:
+#          path: ./llvm
+#          key: ubuntu-latest-llvm-13.0
+#      - name: Install llvm
+#        uses: KyleMayes/install-llvm-action@v1
+#        with:
+#          version: "13.0"
+#          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
       - name: Install wasm-pack
         shell: bash
