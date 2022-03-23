@@ -52,9 +52,9 @@ jobs:
 #          version: "13.0"
 #          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
-#      - name: Install wasm-pack
-#        shell: bash
-#        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+      - name: Install wasm-pack
+        shell: bash
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
 
       - name: Build
         shell: bash
