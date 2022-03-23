@@ -25,32 +25,32 @@ jobs:
 #          target: ubuntu-latest
 #          profile: minimal
 #          override: true
-#      - name: Generate Cargo.lock
-#        uses: actions-rs/cargo@v1
-#        with:
-#          command: generate-lockfile
-#      - name: Cache cargo registry
-#        uses: actions/cache@v2
-#        with:
-#          path: ~/.cargo/registry
-#          key: ubuntu-latest-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-#      - name: Cache cargo index
-#        uses: actions/cache@v2
-#        with:
-#          path: ~/.cargo/git
-#          key: ubuntu-latest-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+      - name: Generate Cargo.lock
+        uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/registry
+          key: ubuntu-latest-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/git
+          key: ubuntu-latest-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
-#      - name: Cache llvm
-#        id: cache-llvm
-#        uses: actions/cache@v2
-#        with:
-#          path: ./llvm
-#          key: ubuntu-latest-llvm-13.0
-#      - name: Install llvm
-#        uses: KyleMayes/install-llvm-action@v1
-#        with:
-#          version: "13.0"
-#          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+      - name: Cache llvm
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: ./llvm
+          key: ubuntu-latest-llvm-13.0
+      - name: Install llvm
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "13.0"
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
       - name: Install wasm-pack
         shell: bash
