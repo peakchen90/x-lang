@@ -3,7 +3,8 @@ members = [
     "compiler/ast",
     "compiler/codegen",
     "compiler/format-tool",
-    "node-binding"
+    "node-binding",
+    "wasm"
 ]
 
 [package]

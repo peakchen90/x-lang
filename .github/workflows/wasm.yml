@@ -1,0 +1,73 @@
+name: Publish Wasm
+
+on:
+  push:
+    branches:
+      - master
+      - wasm
+  pull_request: null
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    if: '!contains(github.event.head_commit.message, ''skip ci'')'
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: ubuntu-latest
+          profile: minimal
+          override: true
+      - name: Generate Cargo.lock
+        uses: actions-rs/cargo@v1
+        with:
+          command: generate-lockfile
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/registry
+          key: ubuntu-latest-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo/git
+          key: ubuntu-latest-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache llvm
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: ./llvm
+          key: ubuntu-latest-llvm-13.0
+      - name: Install llvm
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "13.0"
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+
+      - name: Install wasm-pack
+        shell: bash
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+
+      - name: Build
+        shell: bash
+        run: |
+          wasm-pack build --target web --scope x-lang wasm
+
+      - name: Publish NPM
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+          registry-url: https://registry.npmjs.org
+
+      - run: cd wasm/pkg && npm publish --registry=https://registry.npmjs.org --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+
