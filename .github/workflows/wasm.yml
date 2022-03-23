@@ -18,27 +18,27 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          target: ubuntu-latest
-          profile: minimal
-          override: true
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
-        with:
-          command: generate-lockfile
-      - name: Cache cargo registry
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/registry
-          key: ubuntu-latest-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/git
-          key: ubuntu-latest-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+#      - name: Install rust toolchain
+#        uses: actions-rs/toolchain@v1
+#        with:
+#          toolchain: nightly
+#          target: ubuntu-latest
+#          profile: minimal
+#          override: true
+#      - name: Generate Cargo.lock
+#        uses: actions-rs/cargo@v1
+#        with:
+#          command: generate-lockfile
+#      - name: Cache cargo registry
+#        uses: actions/cache@v2
+#        with:
+#          path: ~/.cargo/registry
+#          key: ubuntu-latest-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+#      - name: Cache cargo index
+#        uses: actions/cache@v2
+#        with:
+#          path: ~/.cargo/git
+#          key: ubuntu-latest-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache llvm
         id: cache-llvm
