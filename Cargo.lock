@@ -380,7 +380,7 @@ checksum = "2c1dffa30f7eefd11dbe7ea854196bf4f711fcc1467f9323711d66abad76d855"
 
 [[package]]
 name = "tools"
-version = "0.0.1-beta.2"
+version = "0.0.1-beta.3"
 dependencies = [
  "console_error_panic_hook",
  "serde_json",

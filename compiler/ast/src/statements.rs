@@ -282,7 +282,10 @@ impl<'a> Parser<'a> {
 
     // 解析表达式语句
     pub(crate) fn parse_expression_statement(&mut self) -> Node {
-        self.validate_inside_fn();
+        if self.current_block_level == 0 {
+            self.unexpected(Some(&format!("Unexpected token `{}`", self.current_token.value)));
+        }
+
         let expression = self.parse_expression();
         if expression.is_none() {
             self.unexpected(Some("Invalid expression"));

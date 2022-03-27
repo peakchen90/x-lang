@@ -1,5 +1,5 @@
-// import initWasm, { format, parse } from 'https://cdn.jsdelivr.net/npm/@x-lang/tools/tools.js';
-import initWasm, { format, parse } from '../wasm/tools/pkg/tools.js'; // dev mode
+import initWasm, { format, parse } from 'https://cdn.jsdelivr.net/npm/@x-lang/tools@latest/tools.js';
+// import initWasm, { format, parse } from '../wasm/tools/pkg/tools.js'; // dev mode
 import throttle from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/throttle.js';
 import debounce from 'https://cdn.jsdelivr.net/npm/lodash-es@4.17.21/debounce.js';
 import { MonokaiTheme } from './theme.js';

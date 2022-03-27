@@ -1,6 +1,6 @@
 [package]
 name = "tools"
-version = "0.0.1-beta.2"
+version = "0.0.1-beta.3"
 description = "x-lang language tools for the wasm"
 authors = ["peakchen90 <1558267774@qq.com>"]
 edition = "2018"
