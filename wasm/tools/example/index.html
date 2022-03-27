@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xlang tools example</title>
+</head>
+
+<body>
+    <script type="module">
+        import initWasm, { format } from '../pkg/tools.js';
+        initWasm().then(() => {
+            const formatCode = format(`
+                fn   a(b :num, c :bool)  ->   num {
+                    if (c) {
+                        return b; // comment
+                    }
+
+                    return b + 1;
+                }
+
+                fn   main  ()   {
+                    a(
+                        0.5,
+                        false
+                    );
+                }
+            `);
+
+            console.log(formatCode)
+        });
+    </script>
+</body>
+
+</html>
