@@ -4,7 +4,8 @@ members = [
     "compiler/codegen",
     "compiler/format-tool",
     "node-binding",
-    "wasm"
+    # "wasm/compiler",
+    "wasm/tools"
 ]
 
 [package]

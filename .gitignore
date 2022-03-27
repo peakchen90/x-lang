@@ -2,6 +2,7 @@
 .idea
 target/
 dist/
+pkg/
 node_modules/
 .temp/
 .DS_Store
@@ -11,6 +12,8 @@ node_modules/
 native/artifacts.json
 artifacts.json
 *.node
+wasm-pack.log
+**/*.rs.bk
 
 /.temp.*
 /.debug_ast.json

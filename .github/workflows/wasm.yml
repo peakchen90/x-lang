@@ -59,7 +59,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          wasm-pack build --target web --scope x-lang wasm
+          wasm-pack build --target web --scope x-lang wasm/tools
 
       - name: Publish NPM
         uses: actions/setup-node@v2

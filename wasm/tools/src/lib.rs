@@ -14,11 +14,6 @@ extern {
 }
 
 #[wasm_bindgen]
-pub fn compile(input: &str) {
-    // x_lang_codegen::compile(input, false)
-}
-
-#[wasm_bindgen]
 pub fn format(code: &str) -> String {
     return x_lang_format_tool::format(code);
 }

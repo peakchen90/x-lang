@@ -39,6 +39,6 @@ pub fn handle_commander() {
         input_content = content.join("\n");
     }
 
-    // parse ast
+    // compile x-lang
     compile(&input_content, is_debug);
 }

@@ -1,7 +1,7 @@
 [package]
-name = "wasm"
+name = "tools"
 version = "0.0.1-beta.0"
-description = "x-lang language compiler and tools for the wasm"
+description = "x-lang language tools for the wasm"
 authors = ["peakchen90 <1558267774@qq.com>"]
 edition = "2018"
 publish = false
@@ -16,9 +16,8 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2"
-x-lang-ast = { path = "../compiler/ast" }
-x-lang-codegen = { path = "../compiler/codegen" }
-x-lang-format-tool = { path = "../compiler/format-tool" }
+x-lang-ast = { path = "../../compiler/ast" }
+x-lang-format-tool = { path = "../../compiler/format-tool" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
