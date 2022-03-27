@@ -380,7 +380,7 @@ checksum = "2c1dffa30f7eefd11dbe7ea854196bf4f711fcc1467f9323711d66abad76d855"
 
 [[package]]
 name = "tools"
-version = "0.0.1-beta.1"
+version = "0.0.1-beta.2"
 dependencies = [
  "console_error_panic_hook",
  "serde_json",
@@ -543,6 +543,7 @@ dependencies = [
  "ansi_term",
  "serde",
  "serde_derive",
+ "wasm-bindgen",
 ]
 
 [[package]]

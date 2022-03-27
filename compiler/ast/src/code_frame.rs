@@ -1,5 +1,6 @@
 use ansi_term::Colour;
 use std::cmp::max;
+use crate::externs;
 
 pub enum CodeFrameMessageType {
     Warn,
@@ -103,22 +104,38 @@ pub fn print_code_frame(
     for str in before_lines.iter() {
         iter_line += 1;
         let line_no = pad_str(&iter_line.to_string(), line_no_width, ' ');
-        print!("{}", code_color.bold().paint(format!("{} | ", line_no)));
-        println!("{}", code_color.paint(str));
+
+        #[cfg(not(feature = "wasm"))]
+        {
+            print!("{}", code_color.bold().paint(format!("{} | ", line_no)));
+            println!("{}", code_color.paint(str));
+        }
+        #[cfg(feature = "wasm")]
+        externs::__logError__(&format!("{} | {}", line_no, str));
     }
 
     // 打印提示信息（需预留行号空白位置）
     let mut message_str = gen_space_str((target.1 - 1) + (line_no_width + 3));
     message_str.push_str("^ ");
     message_str.push_str(message);
+
+    #[cfg(not(feature = "wasm"))]
     println!("{}", primary_color.bold().paint(&message_str));
+    #[cfg(feature = "wasm")]
+    externs::__logError__(&message_str);
 
     // 打印提示信息后面代码
     for str in after_lines.iter() {
         iter_line += 1;
         let line_no = pad_str(&iter_line.to_string(), line_no_width, ' ');
-        print!("{}", code_color.bold().paint(format!("{} | ", line_no)));
-        println!("{}", code_color.paint(str));
+
+        #[cfg(not(feature = "wasm"))]
+        {
+            print!("{}", code_color.bold().paint(format!("{} | ", line_no)));
+            println!("{}", code_color.paint(str));
+        }
+        #[cfg(feature = "wasm")]
+        externs::__logError__(&format!("{} | {}", line_no, str));
     }
 
     source_target

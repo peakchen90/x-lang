@@ -11,13 +11,20 @@
 <body>
     <script type="module">
         import initWasm, { format, parse } from '../pkg/tools.js';
+        window.__throw__ = (msg) => {
+            throw new Error(msg);
+        }
+        window.__logError__ = (msg) => {
+            console.error(msg);
+        }
+
         initWasm().then(() => {
             const code = `
-                fn   a(b :num, c :bool)  ->   num {
+                fn   a(b :num2, c :bool)  ->   num {
                     if (c) {  return b;  } return b+1;
                 }
                 fn main(){
-                  a(0.5,false);
+                    a(0.5,false);
                 }
             `
 

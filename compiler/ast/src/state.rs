@@ -2,6 +2,7 @@ use crate::code_frame::print_error_frame;
 use crate::node::Node;
 use crate::shared::Kind;
 use crate::token::{Token, TokenType};
+use crate::externs;
 
 #[derive(Debug)]
 pub struct Parser<'a> {
@@ -173,7 +174,11 @@ impl<'a> Parser<'a> {
         if let Some((line, column)) = position {
             message.push_str(&format!(" ({}:{})", line, column))
         }
-        panic!("{}", message)
+
+        #[cfg(feature = "wasm")]
+        externs::__throw__(&message);
+
+        panic!("{}", message);
     }
 
     // 抛出一个 unexpected 错误
