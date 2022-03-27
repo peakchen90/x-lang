@@ -2,7 +2,7 @@
 
 # TODO: 需依赖工具 http://www.graphviz.org/
 # 首先需要执行 `cargo run` 命令生成 .debug.ll 文件后才能分析
-# 可以通过追加 `-a` 参数自动打开 svg 文件, Usage: `./analysis.sh -o`
+# 可以通过追加 `-o` 参数自动打开 svg 文件, Usage: `./analysis.sh -o`
 
 rm -rf .temp/.*.dot
 rm -rf .temp/.*.dot.svg
