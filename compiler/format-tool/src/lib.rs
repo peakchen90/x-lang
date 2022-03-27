@@ -81,7 +81,6 @@ impl Formatter {
                 is_pub,
                 ..
             } => {
-                code.push_str("\n");
                 if *is_pub {
                     code.push_str("pub ");
                 }
@@ -94,7 +93,7 @@ impl Formatter {
                 for (i, arg) in arguments.iter().enumerate() {
                     let (arg_name, arg_kind, ..) = arg.deref().read_identifier();
                     code.push_str(arg_name);
-                    code.push_str(" :");
+                    code.push_str(": ");
                     code.push_str(&arg_kind.to_string());
                     if i < arguments.len() - 1 {
                         code.push_str(", ");

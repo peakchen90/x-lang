@@ -1,10 +1,23 @@
 use crate::shared::Kind;
 
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub enum CommentOrder {
+    Leading,
+    Tailing,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Comment {
+    order: CommentOrder,
+    value: String,
+    position: (usize, usize)
+}
+
 #[derive(Debug, Serialize)]
 pub enum Node {
     Program {
         body: Vec<Box<Node>>,
-        position: (usize, usize),
+        position: (usize, usize)
     },
 
     //  statements
@@ -13,6 +26,7 @@ pub enum Node {
         is_std_source: bool,
         specifiers: Option<Vec<Box<Node>>>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     FunctionDeclaration {
         id: Box<Node>,
@@ -21,42 +35,51 @@ pub enum Node {
         return_kind: Kind,
         is_pub: bool,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     VariableDeclaration {
         id: Box<Node>,
         init: Box<Node>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     BlockStatement {
         body: Vec<Box<Node>>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     ReturnStatement {
         argument: Option<Box<Node>>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     ExpressionStatement {
         expression: Box<Node>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     IfStatement {
         condition: Box<Node>,
         consequent: Box<Node>,
         alternate: Option<Box<Node>>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     LoopStatement {
         label: Option<String>,
         body: Box<Node>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     BreakStatement {
         label: Option<String>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
     ContinueStatement {
         label: Option<String>,
         position: (usize, usize),
+        // comments: Vec<Comment>
     },
 
     // expressions

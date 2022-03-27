@@ -5,6 +5,7 @@ use crate::state::Parser;
 pub enum TokenType {
     Begin, // 初始Token
     EOF,   // 结束 Token
+    // Comment, // 注释
     Keyword,
     Identifier,
     Number,
@@ -502,13 +503,25 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // 跳过注释
+    // 跳过注释（可能是连续的多段注释）
     pub(crate) fn skip_comment(&mut self) {
         while self.current_char == '/' && self.look_behind(1) == '/' {
+            // let value = String::new();
+            // let comment = Token {
+            //     token_type: TokenType::Comment,
+            //     value,
+            //     precedence: -1,
+            //     start: self.index,
+            //     end: 0,
+            // };
             self.move_index(2);
             while self.check_valid_index() && self.current_char != '\n' {
+                // value.push(self.current_char);
                 self.move_index(1);
             }
+
+            // comment.end = self.index;
+            // self.current_comments.push(comment);
             self.skip_space(true);
         }
     }

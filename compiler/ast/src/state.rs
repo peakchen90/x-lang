@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
             current_token: begin_token,
             allow_expr: true,
             current_block_level: 0,
-            current_loop_level: 0,
+            current_loop_level: 0
         }
     }
 
