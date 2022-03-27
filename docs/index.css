@@ -47,6 +47,24 @@ body {
     overflow: auto;
 }
 
+#error-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 11;
+    background: #fff;
+    margin: 0;
+    color: #f00;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow: auto;
+    font-family: monospace, sans-serif;
+    letter-spacing: 0px;
+}
+
 button {
     line-height: 1.5715;
     position: relative;
