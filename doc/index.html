@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>xlang tools</title>
+    <link rel="stylesheet" href="./index.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="panel-wrapper">
+            <div id="editor"></div>
+            <div class="sticky-buttons">
+                <button id="btn-format">格式化</button>
+            </div>
+        </div>
+        <div class="panel-wrapper">
+            <div class="sticky-buttons">
+                <button id="btn-collapse">全部折叠</button>
+                <button id="btn-expand">全部展开</button>
+            </div>
+            <json-viewer id="json-viewer" data="{}"></json-viewer>
+        </div>
+    </div>
+
+    <div class="app-loading">
+        loading...
+    </div>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.19.0/min/vs/editor/editor.main.css">
+    <script>var require = { paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.19.0/min/vs' } };</script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.19.0/min/vs/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.19.0/min/vs/editor/editor.main.nls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.19.0/min/vs/editor/editor.main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@alenaksu/json-viewer@1.0.0/dist/json-viewer.js" type="module"></script>
+    <script src="main.js" type="module"></script>
+</body>
+
+</html>

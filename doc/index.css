@@ -1,0 +1,78 @@
+html,
+body {
+    height: 100%;
+    margin: 0;
+    font-size: 14px;
+    font-family: -apple-system, 'PingFang SC', Helvetica, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+.app-loading {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    background: #fff;
+    padding: 12px 20px;
+    color: #999;
+}
+
+.app-container {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+}
+
+.panel-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.sticky-buttons {
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    z-index: 10;
+}
+
+#editor {
+    width: 100%;
+    height: 100%;
+}
+
+#json-viewer {
+    height: 100%;
+    overflow: auto;
+}
+
+button {
+    line-height: 1.5715;
+    position: relative;
+    display: inline-block;
+    font-weight: 400;
+    white-space: nowrap;
+    text-align: center;
+    background-image: none;
+    background-color: #1890ff36;
+    border: 1px solid #1890ff;
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+    height: 24px;
+    padding: 0 6px;
+    font-size: 12px;
+    border-radius: 2px;
+    color: #1890ff;
+    text-shadow: none;
+    box-shadow: 0 2px #0000000b;
+    margin-right: 8px;
+    outline: 0;
+}
+
+button:hover,
+button:active {
+    color: #40a9ff;
+    border-color: #40a9ff;
+}
