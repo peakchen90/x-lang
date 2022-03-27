@@ -15,6 +15,10 @@ authors = ["peakchen90 <1558267774@qq.com>"]
 edition = "2018"
 publish = false
 
+# [lib]
+# name = "xlang"
+# crate-type = ["cdylib", "staticlib"]
+
 [profile.release]
 panic = 'abort'
 
@@ -24,3 +28,4 @@ x-lang-codegen = { path = "./compiler/codegen" }
 x-lang-format-tool = { path = "./compiler/format-tool" }
 serde_json = "1"
 tiny-json = "^0.0.1"
+libc = "0.2"

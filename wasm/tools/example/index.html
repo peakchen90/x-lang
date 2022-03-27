@@ -10,26 +10,19 @@
 
 <body>
     <script type="module">
-        import initWasm, { format } from '../pkg/tools.js';
+        import initWasm, { format, parse } from '../pkg/tools.js';
         initWasm().then(() => {
-            const formatCode = format(`
+            const code = `
                 fn   a(b :num, c :bool)  ->   num {
-                    if (c) {
-                        return b; // comment
-                    }
-
-                    return b + 1;
+                    if (c) {  return b;  } return b+1;
                 }
-
-                fn   main  ()   {
-                    a(
-                        0.5,
-                        false
-                    );
+                fn main(){
+                  a(0.5,false);
                 }
-            `);
+            `
 
-            console.log(formatCode)
+            console.log('【format code】\n', format(code));
+            console.log('\n【parse ast】\n', JSON.parse(parse(code)));
         });
     </script>
 </body>

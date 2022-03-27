@@ -17,3 +17,9 @@ extern {
 pub fn format(code: &str) -> String {
     return x_lang_format_tool::format(code);
 }
+
+#[wasm_bindgen]
+pub fn parse(input: &str) -> String {
+    let ast = x_lang_ast::state::Parser::new(input).parse();
+    serde_json::to_string(&ast).unwrap()
+}

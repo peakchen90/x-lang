@@ -380,9 +380,10 @@ checksum = "2c1dffa30f7eefd11dbe7ea854196bf4f711fcc1467f9323711d66abad76d855"
 
 [[package]]
 name = "tools"
-version = "0.0.1-beta.0"
+version = "0.0.1-beta.1"
 dependencies = [
  "console_error_panic_hook",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "x-lang-ast",
@@ -527,6 +528,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 name = "x-lang"
 version = "0.0.1"
 dependencies = [
+ "libc",
  "serde_json",
  "tiny-json",
  "x-lang-ast",
