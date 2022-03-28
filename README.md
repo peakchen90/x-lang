@@ -72,3 +72,4 @@ VSCode 插件：[vscode-x-lang](https://marketplace.visualstudio.com/items?itemN
 - 嵌套循环，里面的循环break存在问题，原因是内层的 condition 的变量被重复定义了，导致 break 设置的 condition 的值失效了
 - 位运算未实现
 - 读取函数返回的字符串类型，有问题
+- 完善读取数字 token
