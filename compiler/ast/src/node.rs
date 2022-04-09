@@ -10,14 +10,14 @@ pub enum CommentOrder {
 pub struct Comment {
     order: CommentOrder,
     value: String,
-    position: (usize, usize)
+    position: (usize, usize),
 }
 
 #[derive(Debug, Serialize)]
 pub enum Node {
     Program {
         body: Vec<Box<Node>>,
-        position: (usize, usize)
+        position: (usize, usize),
     },
 
     //  statements
@@ -126,7 +126,7 @@ pub enum Node {
     StringLiteral {
         value: String,
         is_raw: bool,
-        position: (usize, usize)
+        position: (usize, usize),
     },
 }
 
