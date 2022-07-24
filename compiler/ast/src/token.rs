@@ -291,7 +291,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Token::create_op(
                         self,
-                        TokenType::BitAnd,
+                        TokenType::BitOr,
                         "|",
                         8,
                         (self.index - 1, self.index),
@@ -333,7 +333,7 @@ impl<'a> Parser<'a> {
                 self.move_index(1);
                 Token::create_op(
                     self,
-                    TokenType::BitNot,
+                    TokenType::BitXor,
                     "^",
                     9,
                     (self.index - 1, self.index),
